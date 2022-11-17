@@ -1,0 +1,3 @@
+interface IterraformsData {
+  function getTokenSVG() public view returns (string);
+}
