@@ -62,25 +62,17 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
 
     struct falsIdleLib{
         uint terraformId;
-        uint tokenLib;
+        uint[] tokenLib;
         string model;
         string description;
         string designer;
     }
 
-    
-struct SampleStruct1 {
-  uint256 id;
-  uint256 value;
-  string name;
-  bool isCreated;
-}
-
-mapping(uint => scriptLib) scriptLibs;
-mapping(uint => styleLib) styleLibs;
-mapping(uint => htmlLib) htmlLibs;
-mapping(uint => canvasLib) canvasLibs;
-mapping(uint => falsIdleLib) falsIdleLibs;
+    mapping(uint => scriptLib) private scriptLibs;
+    mapping(uint => styleLib) private styleLibs;
+    mapping(uint => htmlLib) private htmlLibs;
+    mapping(uint => canvasLib) private canvasLibs;
+    mapping(uint => falsIdleLib) public falsIdleLibs;
 
     //Token base
     address public _terraforms;
@@ -131,7 +123,7 @@ mapping(uint => falsIdleLib) falsIdleLibs;
             interfaceId == type(IERC721Metadata).interfaceId ||
             super.supportsInterface(interfaceId);
     }
-   
+
     /**
      * @dev See {IERC721-balanceOf}.
      */
@@ -213,11 +205,11 @@ mapping(uint => falsIdleLib) falsIdleLibs;
                     terraforms.tokenToPlacement(falsIdleLibs[tokenId].terraformId), 
                     10196, 
                     0, 
-                    canvasLibs[falsIdleLibs[tokenId].tokenLib].canvas
+                    canvasLibs[falsIdleLibs[tokenId].tokenLib[4]].canvas
                 ),
-                scriptLibs[falsIdleLibs[tokenId].tokenLib].script,
-                htmlLibs[falsIdleLibs[tokenId].tokenLib].html,
-                styleLibs[falsIdleLibs[tokenId].tokenLib].style
+                scriptLibs[falsIdleLibs[tokenId].tokenLib[3]].script,
+                htmlLibs[falsIdleLibs[tokenId].tokenLib[1]].html,
+                styleLibs[falsIdleLibs[tokenId].tokenLib[2]].style
             )
         );
     }
@@ -257,7 +249,7 @@ mapping(uint => falsIdleLib) falsIdleLibs;
         _approve(to, tokenId);
     }
 
-    function mint(address to, uint256 tokenId, uint _tokenLib, uint _terraformId, string memory _model, string memory _description, string memory _designer) public virtual onlyOwner {
+    function mint(address to, uint256 tokenId, uint[] memory _tokenLib, uint _terraformId, string memory _model, string memory _description, string memory _designer) public virtual onlyOwner {
         falsIdleLibs[tokenId] = falsIdleLib(_terraformId, _tokenLib, _model, _description, _designer);
         _mint(to, tokenId);
     }
@@ -266,16 +258,16 @@ mapping(uint => falsIdleLib) falsIdleLibs;
         htmlLib(_html);
     }
 
-    function addCSS(uint tokenId, string memory _style) public virtual onlyOwner{
-        styleLibs[tokenId] = styleLib(_style);
+    function addCSS(string memory _style) public virtual onlyOwner{
+        styleLib(_style);
     }
 
-    function addJS(uint tokenId, string memory _script) public virtual onlyOwner{
-        scriptLibs[tokenId] = scriptLib(_script);
+    function addJS(string memory _script) public virtual onlyOwner{
+        scriptLib(_script);
     }
 
-    function addCanvas(uint tokenId, uint[] memory _canvas) public virtual onlyOwner{
-        canvasLibs[tokenId] = canvasLib(_canvas);
+    function addCanvas(uint[] memory _canvas) public virtual onlyOwner{
+        canvasLib(_canvas);
     }
 
 
