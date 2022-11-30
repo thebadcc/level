@@ -30,6 +30,7 @@ interface Iterraforms {
         external 
         view 
         returns (address);  
+        
 }
 
 interface IterraformsData {
@@ -57,28 +58,29 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     }
 
     struct canvasLib {
-        uint[] canvas;
+        uint256[] canvas;
     }
 
     struct falsIdleLib{
         uint terraformId;
-        uint[] tokenLib;
+        uint scriptLib;
+        uint styleLib;
+        uint htmlLib;
+        uint canvasLib;
         string model;
         string description;
         string designer;
     }
-
-    mapping(uint => scriptLib) private scriptLibs;
-    mapping(uint => styleLib) private styleLibs;
-    mapping(uint => htmlLib) private htmlLibs;
-    mapping(uint => canvasLib) private canvasLibs;
+    mapping(uint => scriptLib) public scriptLibs;
+    mapping(uint => styleLib) public styleLibs;
+    mapping(uint => htmlLib) public htmlLibs;
+    mapping(uint => canvasLib) canvasLibs;
     mapping(uint => falsIdleLib) public falsIdleLibs;
 
-    //Token base
-    address public _terraforms;
-
-    // Token Data
-    address public _terraformsData;
+    uint private scriptLength = 0;
+    uint private htmlLength = 0;
+    uint private styleLength = 0;
+    uint private canvasLength = 0;
 
     // Token name
     string private _name;
@@ -99,19 +101,21 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
     //Terraforms.sol interface
-    Iterraforms terraforms = Iterraforms(_terraforms);
+    Iterraforms terraforms = Iterraforms(0x4E1f41613c9084FdB9E34E11fAE9412427480e56);
 
     //TerraformsData.sol interface
-    IterraformsData terraformsData = IterraformsData(_terraformsData);
+    IterraformsData terraformsData = IterraformsData(0xA5aFC9fE76a28fB12C60954Ed6e2e5f8ceF64Ff2);
 
     /**
      * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
      */
-    constructor(string memory name_, string memory symbol_, address terraforms_, address terraformsData_) {
+    constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
-        _terraforms = terraforms_;
-        _terraformsData = terraformsData_;
+    }
+
+ function getCanvas(uint tokenId) public view returns (uint[] memory) {
+        return (canvasLibs[tokenId].canvas);
     }
 
     /**
@@ -158,73 +162,48 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     /**
      * @dev See {IERC721Metadata-tokenURI}.
      */
-    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-    return string(  
-            abi.encodePacked(
-                'data:application/json;base64,',
-                Base64.encode(
-                    abi.encodePacked(
-                        '{"name":"',
-                        falsIdleLibs[tokenId].model,
-                        '","description":',
-                        falsIdleLibs[tokenId].description,
-                        '","designer":',
-                        falsIdleLibs[tokenId].designer,
-                        '","terraform": ',
-                        falsIdleLibs[tokenId].terraformId,
-                        '","animation_URL": ',
-                        tokenHTML(tokenId),
-                        '","image": "data:image/svg+xml;base64,',
-                        Base64.encode(
-                        abi.encodePacked(tokenSVG(tokenId),
-                        '</style></svg>')
-                    ),
-                    '"'
-                        '"}'
-                    )
-                )
-            )
-        );
+  function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+    
     }
 
     function tokenHTML(uint256 tokenId) public view virtual returns (string memory) {
-        return string(
-            abi.encodePacked(
-                "<html><head><meta charset='UTF-8'><style>html,body,svg{margin:0;padding:0; height:100%;text-align:center;}</style>", 
-                tokenSVG(tokenId), 
-                "</body></html>"
-            )
-        );
+
     }
 
-    function tokenSVG(uint256 tokenId) public view virtual returns (string memory) {
-        return string (
-            abi.encodePacked(
-                terraformsData.tokenSVG(
+    function tokenSVG(uint tokenId) 
+        public 
+        view 
+        virtual
+        returns (string memory) 
+    {
+       return string (
+                abi.encodePacked (terraformsData.tokenSVG(
                     3, 
                     terraforms.tokenToPlacement(falsIdleLibs[tokenId].terraformId), 
                     10196, 
                     0, 
-                    canvasLibs[falsIdleLibs[tokenId].tokenLib[4]].canvas
-                ),
-                scriptLibs[falsIdleLibs[tokenId].tokenLib[3]].script,
-                htmlLibs[falsIdleLibs[tokenId].tokenLib[1]].html,
-                styleLibs[falsIdleLibs[tokenId].tokenLib[2]].style
-            )
-        );
+                    canvasLibs[falsIdleLibs[tokenId].canvasLib].canvas
+                    ),
+                    scriptLibs[falsIdleLibs[tokenId].scriptLib].script,
+                    htmlLibs[falsIdleLibs[tokenId].htmlLib].html,
+                    styleLibs[falsIdleLibs[tokenId].styleLib].style
+                )
+            );
+            
     }
 
-    function editToken(uint tokenId, uint terraformId) public virtual {
+  
+    function editToken(uint tokenId, uint _terraformId) public virtual {
         address owner = ERC721.ownerOf(tokenId);
         require(
             msg.sender == owner,
             "ERC721: caller is not token owner"
         );
         require (
-            msg.sender == terraforms.ownerOf(terraformId),
+            msg.sender == terraforms.ownerOf(_terraformId),
             "ERC721: caller is not terraform owner"
         );
-        falsIdleLibs[tokenId].terraformId = terraformId;
+        falsIdleLibs[tokenId].terraformId = _terraformId;
     }
 
     /**
@@ -249,25 +228,30 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         _approve(to, tokenId);
     }
 
-    function mint(address to, uint256 tokenId, uint[] memory _tokenLib, uint _terraformId, string memory _model, string memory _description, string memory _designer) public virtual onlyOwner {
-        falsIdleLibs[tokenId] = falsIdleLib(_terraformId, _tokenLib, _model, _description, _designer);
+    function mint(address to, uint256 tokenId, uint _scriptLib, uint _styleLib,uint _htmlLib,uint _canvasLib, uint _terraformId, string memory _model, string memory _description, string memory _designer) public virtual onlyOwner {
+        falsIdleLibs[tokenId] = falsIdleLib(_terraformId, _scriptLib, _styleLib, _htmlLib, _canvasLib, _model, _description, _designer);
         _mint(to, tokenId);
     }
 
     function addHTML(string memory _html) public virtual onlyOwner{
-        htmlLib(_html);
+        htmlLibs[htmlLength + 1] = htmlLib(_html);
+        htmlLength += 1;
     }
 
     function addCSS(string memory _style) public virtual onlyOwner{
-        styleLib(_style);
+        styleLibs[styleLength + 1] = styleLib(_style);
+        styleLength += 1;
     }
 
     function addJS(string memory _script) public virtual onlyOwner{
-        scriptLib(_script);
+         scriptLibs[scriptLength + 1] = scriptLib(_script); 
+         scriptLength += 1;
     }
+    
 
     function addCanvas(uint[] memory _canvas) public virtual onlyOwner{
-        canvasLib(_canvas);
+        canvasLibs[canvasLength + 1] = canvasLib(_canvas);
+        canvasLength += 1;
     }
 
 
