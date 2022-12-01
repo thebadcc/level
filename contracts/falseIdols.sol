@@ -67,9 +67,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         uint styleLib;
         uint htmlLib;
         uint canvasLib;
-        string model;
+        string title;
         string description;
-        string designer;
+        string artist;
     }
     mapping(uint => scriptLib) public scriptLibs;
     mapping(uint => styleLib) public styleLibs;
@@ -163,11 +163,41 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
      * @dev See {IERC721Metadata-tokenURI}.
      */
   function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-    
+    return string(  
+            abi.encodePacked(
+                'data:application/json;base64,',
+                Base64.encode(
+                    abi.encodePacked(
+                        '{"name":"',
+                        falsIdleLibs[tokenId].title,
+                        '","description":',
+                        falsIdleLibs[tokenId].description,
+                        '","designer":',
+                        falsIdleLibs[tokenId].artist,
+                        '","terraform": ',
+                        falsIdleLibs[tokenId].terraformId,
+                        '","animation_URL": ',
+                        tokenHTML(tokenId),
+                        '","image": "data:image/svg+xml;base64,',
+                        Base64.encode(
+                        abi.encodePacked(tokenSVG(tokenId),
+                        '</style></svg>')
+                    ),
+                        '"}'
+                    )
+                )
+            )
+        );
     }
 
     function tokenHTML(uint256 tokenId) public view virtual returns (string memory) {
-
+        return string(
+            abi.encodePacked(
+                "<html><head><meta charset='UTF-8'><style>html,body,svg{margin:0;padding:0; height:100%;text-align:center;}</style>", 
+                tokenSVG(tokenId), 
+                "</body></html>"
+            )
+        );
     }
 
     function tokenSVG(uint tokenId) 
@@ -177,19 +207,19 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         returns (string memory) 
     {
        return string (
-                abi.encodePacked (terraformsData.tokenSVG(
+                abi.encodePacked (
+                    htmlLibs[falsIdleLibs[tokenId].htmlLib].html,
+                    styleLibs[falsIdleLibs[tokenId].styleLib].style,
+                    terraformsData.tokenSVG(
                     3, 
                     terraforms.tokenToPlacement(falsIdleLibs[tokenId].terraformId), 
                     10196, 
                     0, 
                     canvasLibs[falsIdleLibs[tokenId].canvasLib].canvas
                     ),
-                    scriptLibs[falsIdleLibs[tokenId].scriptLib].script,
-                    htmlLibs[falsIdleLibs[tokenId].htmlLib].html,
-                    styleLibs[falsIdleLibs[tokenId].styleLib].style
+                    scriptLibs[falsIdleLibs[tokenId].scriptLib].script
                 )
             );
-            
     }
 
   
@@ -228,8 +258,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         _approve(to, tokenId);
     }
 
-    function mint(address to, uint256 tokenId, uint _scriptLib, uint _styleLib,uint _htmlLib,uint _canvasLib, uint _terraformId, string memory _model, string memory _description, string memory _designer) public virtual onlyOwner {
-        falsIdleLibs[tokenId] = falsIdleLib(_terraformId, _scriptLib, _styleLib, _htmlLib, _canvasLib, _model, _description, _designer);
+    function mint(address to, uint256 tokenId, uint _scriptLib, uint _styleLib,uint _htmlLib,uint _canvasLib, uint _terraformId, string memory _title, string memory _description, string memory _artist) public virtual onlyOwner {
+        falsIdleLibs[tokenId] = falsIdleLib(_terraformId, _scriptLib, _styleLib, _htmlLib, _canvasLib, _title, _description, _artist);
         _mint(to, tokenId);
     }
 
@@ -244,7 +274,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     }
 
     function addJS(string memory _script) public virtual onlyOwner{
-         scriptLibs[scriptLength + 1] = scriptLib(_script); 
+         scriptLibs[scriptLength + 1] = scriptLib(Base64.encode(abi.encodePacked(_script))); 
          scriptLength += 1;
     }
     
