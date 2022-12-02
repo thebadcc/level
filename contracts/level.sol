@@ -69,7 +69,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         uint canvasLib;
         string title;
         string description;
-        string artist;
+        string collection;
     }
     mapping(uint => scriptLib) public scriptLibs;
     mapping(uint => styleLib) public styleLibs;
@@ -87,6 +87,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
 
     // Token symbol
     string private _symbol;
+
+    // Animation URL
+    string private _animationURL;
 
     // Mapping from token ID to owner address
     mapping(uint256 => address) private _owners;
@@ -173,7 +176,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
                         '","description":',
                         falsIdleLibs[tokenId].description,
                         '","designer":',
-                        falsIdleLibs[tokenId].artist,
+                        falsIdleLibs[tokenId].collection,
                         '","terraform": ',
                         falsIdleLibs[tokenId].terraformId,
                         '","animation_URL": ',
@@ -209,7 +212,6 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
        return string (
                 abi.encodePacked (
                     htmlLibs[falsIdleLibs[tokenId].htmlLib].html,
-                    styleLibs[falsIdleLibs[tokenId].styleLib].style,
                     terraformsData.tokenSVG(
                     3, 
                     terraforms.tokenToPlacement(falsIdleLibs[tokenId].terraformId), 
@@ -217,6 +219,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
                     0, 
                     canvasLibs[falsIdleLibs[tokenId].canvasLib].canvas
                     ),
+                    styleLibs[falsIdleLibs[tokenId].styleLib].style,
                     scriptLibs[falsIdleLibs[tokenId].scriptLib].script
                 )
             );
@@ -224,11 +227,6 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
 
   
     function editToken(uint tokenId, uint _terraformId) public virtual {
-        address owner = ERC721.ownerOf(tokenId);
-        require(
-            msg.sender == owner,
-            "ERC721: caller is not token owner"
-        );
         require (
             msg.sender == terraforms.ownerOf(_terraformId),
             "ERC721: caller is not terraform owner"
@@ -258,8 +256,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         _approve(to, tokenId);
     }
 
-    function mint(address to, uint256 tokenId, uint _scriptLib, uint _styleLib,uint _htmlLib,uint _canvasLib, uint _terraformId, string memory _title, string memory _description, string memory _artist) public virtual onlyOwner {
-        falsIdleLibs[tokenId] = falsIdleLib(_terraformId, _scriptLib, _styleLib, _htmlLib, _canvasLib, _title, _description, _artist);
+    function mint(address to, uint256 tokenId, uint _scriptLib, uint _styleLib,uint _htmlLib,uint _canvasLib, uint _terraformId, string memory _title, string memory _description, string memory _collection) public virtual onlyOwner {
+        falsIdleLibs[tokenId] = falsIdleLib(_terraformId, _scriptLib, _styleLib, _htmlLib, _canvasLib, _title, _description, _collection);
         _mint(to, tokenId);
     }
 
@@ -282,6 +280,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     function addCanvas(uint[] memory _canvas) public virtual onlyOwner{
         canvasLibs[canvasLength + 1] = canvasLib(_canvas);
         canvasLength += 1;
+    }
+
+    function updateToken(uint256 tokenId, uint _scriptLib, uint _styleLib,uint _htmlLib,uint _canvasLib) public virtual onlyOwner {
+        falsIdleLibs[tokenId].scriptLib =  _scriptLib;
+        falsIdleLibs[tokenId].styleLib =  _styleLib;
+        falsIdleLibs[tokenId].htmlLib =  _htmlLib;
+        falsIdleLibs[tokenId].canvasLib =  _canvasLib;
     }
 
 
