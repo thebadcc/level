@@ -17,7 +17,7 @@
 ██████╔╝   ██║          ██║   ██║  ██║███████╗██████╔╝██║  ██║██████╔╝╚██████╗╚██████╗
 ╚═════╝    ╚═╝          ╚═╝   ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝
 
-An experiment using Terraforms by @mathcastles as canvas for digital art.
+An experiment using Terraforms by @mathcastles as a canvas for digital art.
 
 DISCLAIMER
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,7 @@ DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE SOFTWARE OR FROM
 OTHER DEALINGS IN THE SOFTWARE.
 
-All rights reserved.
+Copyright 2022. All rights reserved.
 
 */
 
