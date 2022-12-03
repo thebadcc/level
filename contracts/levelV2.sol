@@ -34,6 +34,7 @@ All rights reserved.
 
 */
 
+
 pragma solidity ^0.8.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/IERC721.sol";
@@ -107,9 +108,6 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
 
     // Token symbol
     string private _symbol;
-
-    // Animation URL
-    string private _animationURL;
 
     // Mapping from token ID to owner address
     mapping(uint256 => address) private _owners;
@@ -283,14 +281,13 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     }
   
     function editToken(uint tokenId, uint _terraformId) public virtual {
- /*       require (
+        require (
             msg.sender == terraforms.ownerOf(_terraformId),
             "ERC721: caller is not terraform owner"
         );
-
-        
-*/
-        require(_exists(tokenId), "ERC721: invalid token ID");
+        require(
+            _exists(tokenId), "ERC721: invalid token ID"
+        );
         falsIdleLibs[tokenId].terraformId = _terraformId;
     }
 
