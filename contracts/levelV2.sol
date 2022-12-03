@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (token/ERC721/ERC721.sol)
 
-
 /*
 
       ██╗ ███████╗██╗   ██╗███████╗██╗                                            
@@ -9,7 +8,7 @@
 █████╗██║ █████╗  ██║   ██║█████╗  ██║█████╗                                      
 ╚════╝██║ ██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚════╝                                      
       ██║ ███████╗ ╚████╔╝ ███████╗██║                                      
-      ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝                                       
+      ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝ v1                           
                                                                                       
 ██████╗ ██╗   ██╗    ████████╗██╗  ██╗███████╗██████╗  █████╗ ██████╗  ██████╗ ██████╗
 ██╔══██╗╚██╗ ██╔╝    ╚══██╔══╝██║  ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝
@@ -18,7 +17,23 @@
 ██████╔╝   ██║          ██║   ██║  ██║███████╗██████╔╝██║  ██║██████╔╝╚██████╗╚██████╗
 ╚═════╝    ╚═╝          ╚═╝   ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝
 
+A project centered around Terraforms by @mathcastles.
+
+DISCLAIMER
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE SOFTWARE OR FROM
+OTHER DEALINGS IN THE SOFTWARE.
+
+All rights reserved.
+
 */
+
 
 pragma solidity ^0.8.0;
 
@@ -81,7 +96,7 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         string collection;
     }
 
-    mapping(uint => lbry) public lbrys;
+    mapping(uint => lbry) private lbrys;
     mapping(uint => canvasLib) canvasLibs;
     mapping(uint => falsIdleLib) public falsIdleLibs;
 
@@ -123,7 +138,7 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         _symbol = symbol_;
     }
 
- function getCanvas(uint tokenId) public view returns (uint[] memory) {
+    function getCanvas(uint tokenId) public view returns (uint[] memory) {
         return (canvasLibs[tokenId].canvas);
     }
 
@@ -183,13 +198,13 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
                     abi.encodePacked(
                         '{"name":"',
                         falsIdleLibs[tokenId].title,
-                        '","description":',
+                        '","description":"',
                         falsIdleLibs[tokenId].description,
-                        '","designer":',
+                        '","designer":"',
                         falsIdleLibs[tokenId].collection,
-                        '","terraform": ',
+                        '","terraform":"',
                         Strings.toString(falsIdleLibs[tokenId].terraformId),
-                        '","animation_URL": ',
+                        '","animation_URL":"',
                         tokenHTML(tokenId),
                         '","image": "data:image/svg+xml;base64,',
                         Base64.encode(
@@ -269,10 +284,14 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     }
   
     function editToken(uint tokenId, uint _terraformId) public virtual {
-        require (
+ /*       require (
             msg.sender == terraforms.ownerOf(_terraformId),
             "ERC721: caller is not terraform owner"
         );
+
+        
+*/
+        require(_exists(tokenId), "ERC721: invalid token ID");
         falsIdleLibs[tokenId].terraformId = _terraformId;
     }
 
@@ -308,7 +327,6 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
          lbrylength += 1;
     }
     
-
     function addCanvas(uint[] memory _canvas) public virtual onlyOwner{
         canvasLibs[canvasLength + 1] = canvasLib(_canvas);
         canvasLength += 1;
