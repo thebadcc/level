@@ -17,7 +17,7 @@
 ██████╔╝   ██║          ██║   ██║  ██║███████╗██████╔╝██║  ██║██████╔╝╚██████╗╚██████╗
 ╚═════╝    ╚═╝          ╚═╝   ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝
 
-A project centered around Terraforms by @mathcastles.
+An experiment using Terraforms by @mathcastles as canvas for digital art.
 
 DISCLAIMER
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -33,7 +33,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 All rights reserved.
 
 */
-
 
 pragma solidity ^0.8.0;
 
