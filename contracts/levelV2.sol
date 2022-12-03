@@ -1,6 +1,25 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (token/ERC721/ERC721.sol)
 
+
+/*
+
+      ██╗ ███████╗██╗   ██╗███████╗██╗                                            
+      ██║ ██╔════╝██║   ██║██╔════╝██║                                            
+█████╗██║ █████╗  ██║   ██║█████╗  ██║█████╗                                      
+╚════╝██║ ██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚════╝                                      
+      ██║ ███████╗ ╚████╔╝ ███████╗██║                                      
+      ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝                                       
+                                                                                      
+██████╗ ██╗   ██╗    ████████╗██╗  ██╗███████╗██████╗  █████╗ ██████╗  ██████╗ ██████╗
+██╔══██╗╚██╗ ██╔╝    ╚══██╔══╝██║  ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝
+██████╔╝ ╚████╔╝        ██║   ███████║█████╗  ██████╔╝███████║██║  ██║██║     ██║     
+██╔══██╗  ╚██╔╝         ██║   ██╔══██║██╔══╝  ██╔══██╗██╔══██║██║  ██║██║     ██║     
+██████╔╝   ██║          ██║   ██║  ██║███████╗██████╔╝██║  ██║██████╔╝╚██████╗╚██████╗
+╚═════╝    ╚═╝          ╚═╝   ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝
+
+*/
+
 pragma solidity ^0.8.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/IERC721.sol";
@@ -39,7 +58,7 @@ interface IterraformsData {
         returns (string memory);
 }
 
-contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
+contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     using Address for address;
     using Strings for uint256;
 
@@ -270,7 +289,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
      * @dev See {IERC721-approve}.
      */
     function approve(address to, uint256 tokenId) public virtual override {
-        address owner = ERC721.ownerOf(tokenId);
+        address owner = level.ownerOf(tokenId);
         require(to != owner, "ERC721: approval to current owner");
         require(
             _msgSender() == owner || isApprovedForAll(owner, _msgSender()),
@@ -417,7 +436,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
      * - `tokenId` must exist.
      */
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual returns (bool) {
-        address owner = ERC721.ownerOf(tokenId);
+        address owner = level.ownerOf(tokenId);
         return (spender == owner || isApprovedForAll(owner, spender) || getApproved(tokenId) == spender);
     }
 
@@ -499,12 +518,12 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
      * Emits a {Transfer} event.
      */
     function _burn(uint256 tokenId) internal virtual {
-        address owner = ERC721.ownerOf(tokenId);
+        address owner = level.ownerOf(tokenId);
 
         _beforeTokenTransfer(owner, address(0), tokenId);
 
         // Update ownership in case tokenId was transferred by `_beforeTokenTransfer` hook
-        owner = ERC721.ownerOf(tokenId);
+        owner = level.ownerOf(tokenId);
 
         // Clear approvals
         delete _tokenApprovals[tokenId];
@@ -537,13 +556,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         address to,
         uint256 tokenId
     ) internal virtual {
-        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        require(level.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
         require(to != address(0), "ERC721: transfer to the zero address");
 
         _beforeTokenTransfer(from, to, tokenId);
 
         // Check that tokenId was not transferred by `_beforeTokenTransfer` hook
-        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        require(level.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
 
         // Clear approvals from the previous owner
         delete _tokenApprovals[tokenId];
@@ -571,7 +590,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, Ownable {
      */
     function _approve(address to, uint256 tokenId) internal virtual {
         _tokenApprovals[tokenId] = to;
-        emit Approval(ERC721.ownerOf(tokenId), to, tokenId);
+        emit Approval(level.ownerOf(tokenId), to, tokenId);
     }
 
     /**
