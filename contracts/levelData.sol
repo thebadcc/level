@@ -78,45 +78,6 @@ interface IterraformsData {
         returns (uint, uint);
 }
 
-interface ITerraformsSVG {
-
-struct SVGParams {
-        uint[32][32] heightmapIndices;
-        uint level;
-        uint tile;
-        uint resourceLvl;
-        uint resourceDirection;
-        uint status;
-        uint font;
-        uint fontSize;
-        uint charsIndex;
-        string zoneName;
-        string[9] chars;
-        string[10] zoneColors;
-    }
-
-    struct AnimParams {
-        Activation activation;
-        uint classesAnimated;
-        uint duration;
-        uint durationInc;
-        uint delay;
-        uint delayInc;
-        uint bgDuration;
-        uint bgDelay;
-        string easing;
-        string[2] altColors;
-    }
-
-    enum Activation {Cascade, Plague}
-
-    function makeSVG(SVGParams memory, AnimParams memory) 
-        external 
-        view 
-        returns (string memory, string memory, string memory);
-
-}
-
 contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
    
     using Address for address;
@@ -136,19 +97,23 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         uint level;
         uint[] topLbry;
         uint[] botLbry;
+        uint coverLbry;
         uint canvasLbry;
         uint loop;
         string title;
         string description;
-        string collection;
+        string artist;
     }
 
     mapping(uint => lbry) private lbrys;
     mapping(uint => canvas) canvases;
     mapping(uint => tokenMeta) public tokenMetas;
 
-    uint private lbrylength = 0;
-    uint private canvasLength = 0;
+    uint public lbrylength = 0;
+    uint public canvasLength = 0;
+
+    string animationURL;
+    bool externalAnimation;
 
     // Token name
     string private _name;
@@ -173,10 +138,6 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
 
     //TerraformsData.sol interface
     IterraformsData terraformsData = IterraformsData(0xA5aFC9fE76a28fB12C60954Ed6e2e5f8ceF64Ff2);
-
-    //TerraformsSCG.sol interface
-    ITerraformsSVG terraformsSVG = ITerraformsSVG(0x49957Ca2F1E314c2cf70701816bf6283b7215811);
-    
 
     /**
      * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
@@ -238,8 +199,26 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     /**
      * @dev See {IERC721Metadata-tokenURI}.
      */
-  function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-    return string(  
+  function tokenURI(uint256 tokenId) public view virtual override returns (string memory result) {
+    string memory animationURI;
+    if (externalAnimation == true){
+            animationURI = string(
+                abi.encodePacked(
+                    animationURL,
+                    tokenId,
+                    ".html"
+                )
+            );
+        } else { 
+            animationURI = string(
+                abi.encodePacked(
+                    animationURL,
+                    tokenHTML(tokenId)
+                )
+            );
+        }
+
+    result = string(  
             abi.encodePacked(
                 'data:application/json;base64,',
                 Base64.encode(
@@ -248,16 +227,17 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
                         tokenMetas[tokenId].title,
                         '","description":"',
                         tokenMetas[tokenId].description,
-                        '","designer":"',
-                        tokenMetas[tokenId].collection,
+                        '","artist":"',
+                        tokenMetas[tokenId].artist,
                         '","terraform":"',
                         Strings.toString(tokenMetas[tokenId].terraformId),
+                        abi.encodePacked(
                         '","animation_URL":"',
-                        tokenHTML(tokenId),
+                        animationURI
+                        ),
                         '","image": "data:image/svg+xml;base64,',
                         Base64.encode(
-                        abi.encodePacked(tokenSVG(tokenId),
-                        '</style></svg>')
+                        abi.encodePacked(coverSVG(tokenId))
                     ),
                         '"}'
                     )
@@ -266,10 +246,15 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         );
     }
 
+    function updatetokenURI (string memory call, bool direction) public virtual  {
+        animationURL = call;
+        externalAnimation == direction;
+    }
+
     function tokenHTML(uint256 tokenId) public view virtual returns (string memory) {
         return string(
             abi.encodePacked(
-                "<html><head><meta charset='UTF-8'><style>html,body,svg{margin:0;padding:0; height:100%;text-align:center;}</style>", 
+                "<html><head><meta charset='UTF-8'><style>html,body,svg{margin:0;padding:0; height:100%;text-align:center;}</style></head><body>", 
                 tokenSVG(tokenId), 
                 "</body></html>"
             )
@@ -304,8 +289,6 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         );
     }
 
-
-
     function tokenSVG(uint tokenId) 
         public 
         view 
@@ -323,6 +306,25 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
                     canvases[tokenMetas[tokenId].canvasLbry].canvas
                     ),
                     _botComp(tokenMetas[tokenId].loop, tokenId)
+                )
+            );
+    }
+
+    function coverSVG(uint tokenId) 
+        public 
+        view 
+        virtual
+        returns (string memory) 
+    {
+       return string (
+                abi.encodePacked (
+                    terraformsData.tokenSVG(
+                    3, 
+                    terraforms.tokenToPlacement(tokenMetas[tokenId].terraformId), 
+                    10196, 
+                    0, 
+                    canvases[tokenMetas[tokenId].coverLbry].canvas
+                    )
                 )
             );
     }
@@ -358,7 +360,7 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         );
         */
         require (
-        tokenMetas[tokenId].level == tokenLevel, 
+        tokenMetas[tokenId].level == tokenLevel + 1, 
         "ERC721: invalid token level"
         );
         require(
@@ -389,10 +391,11 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         _approve(to, tokenId);
     }
 
-    function mint(address to, uint256 tokenId, uint[] memory _topLbry, uint[] memory _botLbry, uint _canvasLib, uint _loop, uint _terraformId, string memory _title, string memory _description, string memory _collection) public virtual onlyOwner {
+    function mint(address to, uint256 tokenId, uint[] memory _topLbry, uint[] memory _botLbry, uint _canvasLbry, uint _coverLbry, uint _loop, uint _terraformId, string memory _title, string memory _description, string memory _collection) public virtual onlyOwner {
         uint placement = terraforms.tokenToPlacement(_terraformId);
         (uint tokenLevel, ) = terraformsData.levelAndTile(placement, 10196);
-        tokenMetas[tokenId] = tokenMeta(_terraformId, tokenLevel, _topLbry, _botLbry, _canvasLib, _loop, _title, _description, _collection);
+        uint realLvl = tokenLevel + 1;
+        tokenMetas[tokenId] = tokenMeta(_terraformId, realLvl, _topLbry, _botLbry, _coverLbry, _canvasLbry, _loop, _title, _description, _collection);
         _mint(to, tokenId);
     }
 
@@ -406,10 +409,11 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         canvasLength += 1;
     }
 
-    function updateToken(uint256 tokenId, uint[] memory _topUp, uint[] memory _botUp, uint _canvasUp) public virtual onlyOwner {
+    function updateToken(uint256 tokenId, uint[] memory _topUp, uint[] memory _botUp, uint _canvasUp, uint _coverUp) public virtual onlyOwner {
         tokenMetas[tokenId].topLbry =  _topUp;
         tokenMetas[tokenId].botLbry =  _botUp;
         tokenMetas[tokenId].canvasLbry =  _canvasUp;
+        tokenMetas[tokenId].coverLbry =  _coverUp;
     }
 
 
