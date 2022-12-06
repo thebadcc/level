@@ -8,7 +8,7 @@
 █████╗██║ █████╗  ██║   ██║█████╗  ██║█████╗                                      
 ╚════╝██║ ██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚════╝                                      
       ██║ ███████╗ ╚████╔╝ ███████╗██║                                      
-      ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝ v1                           
+      ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝ data v1                           
                                                                                       
 ██████╗ ██╗   ██╗    ████████╗██╗  ██╗███████╗██████╗  █████╗ ██████╗  ██████╗ ██████╗
 ██╔══██╗╚██╗ ██╔╝    ╚══██╔══╝██║  ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝
@@ -39,9 +39,9 @@ Copyright 2022. All rights reserved.
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ToString.sol";
-import "./TerraformsDataInterfaces.sol";
-import "./TerraformsDataStorage.sol";
+import "https://github.com/thebadcc/-level-/blob/master/contracts/ToString.sol";
+import "https://github.com/thebadcc/-level-/blob/master/contracts/levelDataInterfaces.sol";
+import "https://github.com/thebadcc/-level-/blob/master/contracts/levelDataStorage.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Context.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Base64.sol";
