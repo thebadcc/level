@@ -17,7 +17,10 @@
 ██████╔╝   ██║          ██║   ██║  ██║███████╗██████╔╝██║  ██║██████╔╝╚██████╗╚██████╗
 ╚═════╝    ╚═╝          ╚═╝   ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝
 
-An interactive art collection built fully on-chain with Terraforms by @mathcastles
+An interactive art collection built fully on-chain using Terraforms by @mathcastles
+
+--ATTRIBUTION--
+
 
 --DISCLAIMER--
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -33,212 +36,103 @@ OTHER DEALINGS IN THE SOFTWARE.
 Copyright 2022. All rights reserved.
 
 */
-
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/IERC721.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/IERC721Receiver.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/IERC721Metadata.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Context.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/introspection/ERC165.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Base64.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
+import "./ToString.sol";
+import "./Base64.sol";
+import "./TerraformsDataInterfaces.sol";
+import "./TerraformsDataStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @author xaltgeist
+/// @title Token data and tokenURI generation for the Terraforms contract
+/// @dev Terraforms data is generated on-demand; Terraforms are not stored
+contract TerraformsData is TerraformsDataStorage, Ownable {
 
-/**
- * @dev Implementation of https://eips.ethereum.org/EIPS/eip-721[ERC721] Non-Fungible Token Standard, including
- * the Metadata extension, but not including the Enumerable extension, which is available separately as
- * {ERC721Enumerable}.
- */
-interface Iterraforms {
-  
-    function tokenToPlacement(uint) 
-        external 
-        view 
-        returns (uint);
-
-    function ownerOf(uint) 
-        external 
-        view 
-        returns (address);  
-}
-
-interface IterraformsData {
-
-    function tokenSVG(uint, uint, uint, uint, uint[] memory) 
-        external 
-        view 
-        returns (string memory);
-
-    function levelAndTile(uint, uint) 
-        external
-        view
-        returns (uint, uint);
-}
-
-contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
-   
-    using Address for address;
-    using Strings for uint256;
-
-    // Token Libraries
-    struct lbry {
-        string lbry;
+    /// @dev Parameters used to generate tokenURI
+    struct tokenURIContext {
+        ITerraformsSVG.SVGParams p; // Parameters for SVG contract
+        ITerraformsSVG.AnimParams a; // Parameters to generate CSS animation
+        string name;
+        string svgMain; // Main body of the tokenURI SVG
+        string animations; // SVG animation keyframes
+        string script; // SVG javascript
+        string imageURI; // "image" attribute source 
+        string animationURI; // "animation_url" source
+        string activation; // Token activation
+        string mode; // Terrain, Daydream, Terraform
     }
 
-    struct canvas {
-        uint256[] canvas;
+    /// @dev A token's status
+    enum Status {
+        Terrain, 
+        Daydream, 
+        Terraformed, 
+        OriginDaydream, 
+        OriginTerraformed
     }
 
-    struct tokenMeta{
-        uint terraformId;
-        uint level;
-        uint[] topLbry;
-        uint[] botLbry;
-        uint coverLbry;
-        uint canvasLbry;
-        uint loop;
-        string title;
-        string description;
-        string artist;
+    // Interfaces
+    ITerraformsSVG terraformsSVG;
+    ITerraformsZones terraformsZones;
+    ITerraformsCharacters terraformsCharacters;
+    IPerlinNoise perlinNoise;
+    ITerraformsResource resource;
+    uint immutable INIT_TIME;
+    uint constant MAX_SUPPLY = 11_104;
+    uint constant MAX_LEVEL_DIMS = 48;
+    uint public constant TOKEN_DIMS = 32;
+    int public constant STEP = 6619;
+    string animationURL = 'https://tokens.mathcastles.xyz/terraforms/token-html/';
+    string imageURL;
+    string public resourceName;
+    address public resourceAddress;
+
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     * CONSTRUCTOR, FALLBACKS
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    constructor (
+        address _terraformsSVGAddress, // Assembles SVG
+        address _perlinNoiseAddress, // Generates terrain
+        address _terraformsZonesAddress, // Manages zone info
+        address _terraformsCharsAddress // Manages character info
+    ) 
+    Ownable()
+    {
+        terraformsSVG = ITerraformsSVG(_terraformsSVGAddress); 
+        perlinNoise = IPerlinNoise(_perlinNoiseAddress); 
+        terraformsZones = ITerraformsZones(_terraformsZonesAddress);
+        terraformsCharacters = ITerraformsCharacters(_terraformsCharsAddress);
+        INIT_TIME = block.timestamp; // Baseline for structure movement
+        resourceName = "???"; // Initial resource name
     }
 
-    mapping(uint => lbry) private lbrys;
-    mapping(uint => canvas) canvases;
-    mapping(uint => tokenMeta) public tokenMetas;
+    // SVG returned by TokenURI prior to token reveal
+    string public prerevealSVG = '<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg shape-rendering="crispEdges" viewBox="0 0 280 280" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><rect class="bg" fill="#161616" x="0" y="0" width="280" height="280"/><path class="y" stroke="#fff" d="m 132.5,126.5 h 2 m 2,0 h 1 m -8,1 h 1 m 3,0 h 1 m 3,0 h 1 m 7,0 h 1 m 3,0 h 2 m -25,1 h 2 m 1,0 h 1 m 3,0 h 1 m 14,0 h 2 m -23,1 h 1 m 2,0 h 1 m 3,0 h 1 m 1,0 h 4 m 1,0 h 4 m 2,0 h 2 m -21,1 h 1 m 3,0 h 2 m 17,0 h 1 m -26,1 h 1 m 4,0 h 1 m 14,0 h 1 m 3,0 h 2 m -22,1 h 1 m 1,0 h 5 m 5,0 h 1 m 1,0 h 1 m 2,0 h 1 m 2,0 h 1 m -24,1 h 1 m 1,0 h 1 m 1,0 h 1 m 2,0 h 1 m 1,0 h 1 m 3,0 h 1 m 1,0 h 1 m 2,0 h 1 m 1,0 h 1 m -19,1 h 1 m 1,0 h 1 m 2,0 h 1 m 2,0 h 1 m 2,0 h 1 m 1,0 h 1 m 2,0 h 1 m 2,0 h 1 m 2,0 h 2 m -24,1 h 1 m 2,0 h 5 m 4,0 h 4 m 3,0 h 1 m 1,0 h 2 m -23,1 h 1 m 18,0 h 1 m -23,1 h 1 m 1,0 h 1 m 3,0 h 1 m 3,0 h 1 m 5,0 h 1 m 4,0 h 1 m -19,1 h 4 m 2,0 h 2 m 5,0 h 1 m 3,0 h 1 m 2,0 h 1 m -23,1 h 3 m 3,0 h 3 m 1,0 h 1 m 2,0 h 1 m 1,0 h 1 m 2,0 h 1 m 2,0 h 2 m -23,1 h 2 m 1,0 h 1 m 2,0 h 2 m 2,0 h 1 m 1,0 h 1 m 3,0 h 3 m 2,0 h 1 m -17,1 h 8 m 1,0 h 2 m 1,0 h 1 m 1,0 h 1 m -9,1 h 1 m -10,1 h 2 m 1,0 h 2 m 8,0 h 5 m -16,1 h 1 m 1,0 h 2 m 6,0 h 4 m -7,1 h 2 m -7,1 h 1 m 2,0 h 2 m 5,0 h 1 m 1,0 h 2 m -16,1 h 4 m 1,0 h 2 m 1,0 h 3 m 2,0 h 1 m -7,1 h 2 m 1,0 h 2 m -6,1 h 1 m 1,0 h 1 m 2,0 h 1 m -6,1 h 1 m 2,0 h 3 m -7,1 h 1 m 3,0 h 1 m -6,1 h 1 m 3,0 h 2 m -6,1 h 1 m 1,0 h 1 m 1,0 h 1 m 0,-27 h 1 m 2,0 h 1 m -2,1 h 1 m -2,5 h 1 m -17,5 h 1 m 0,1 h 1 m 16,1 h 1 m -13,2 h 1 m 8,0 h 1 m -10,2 h 1 m 0,1 h 1 m 11,2 h 1 m 1,-20 h 1 m -11,1 h 1 m -2,2 h 1 m 4,0 h 1 m -15,3 h 1 m 10,1 h 1 m -1,12 h 1 m -1,3 h 1 m -2,5 h 1 m 1,0 h 1 m 1,-26 h 1 m -11,1 h 1 m 14,2 h 1 m -10,4 h 1 m -9,2 h 1 m 2,1 h 1 m 9,1 h 1 m -10,1 h 1 m 14,1 h 1 m -15,8 h 1 m 6,1 h 1 m -5,1 h 1 m 6,-18 h 1 m -9,19 h 1"/><path class="x" stroke="#fff" d="m 135.5,123.5 h 1 m 7,0 h 1 m 4,0 h 1 m -18,1 h 2 m 3,0 h 1 m 2,0 h 1 m 3,0 h 1 m -16,1 h 1 m 3,0 h 1 m 3,0 h 1 m 3,0 h 1 m 7,0 h 1 m -20,1 h 1 m 17,0 h 1 m -15,1 h 9 m 2,0 h 1 m 7,0 h 1 m -27,1 h 2 m 2,0 h 3 m 2,0 h 1 m 6,0 h 1 m 2,0 h 2 m 3,0 h 2 m -25,1 h 1 m 1,0 h 2 m 3,0 h 1 m 1,0 h 2 m 3,0 h 4 m 2,0 h 2 m -20,1 h 1 m 2,0 h 2 m 1,0 h 1 m 1,0 h 1 m 3,0 h 1 m 1,0 h 1 m 1,0 h 1 m 2,0 h 1 m -21,1 h 1 m 3,0 h 2 m 1,0 h 1 m 1,0 h 1 m 3,0 h 1 m 1,0 h 1 m 1,0 h 1 m 2,0 h 1 m -21,1 h 1 m 4,0 h 4 m 4,0 h 1 m 1,0 h 1 m 1,0 h 1 m 2,0 h 1 m -23,1 h 1 m 1,0 h 1 m 5,0 h 3 m 4,0 h 4 m 3,0 h 1 m -23,1 h 1 m 1,0 h 1 m 3,0 h 1 m -7,1 h 1 m 1,0 h 2 m 2,0 h 1 m 4,0 h 1 m 3,0 h 1 m 4,0 h 2 m 2,0 h 2 m -26,1 h 1 m 2,0 h 3 m 1,0 h 1 m 3,0 h 1 m 4,0 h 1 m 2,0 h 2 m 2,0 h 2 m -24,1 h 1 m 2,0 h 2 m 1,0 h 4 m 1,0 h 1 m 1,0 h 1 m 2,0 h 4 m -19,1 h 2 m 4,0 h 1 m 1,0 h 7 m 2,0 h 1 m -19,1 h 2 m 5,0 h 1 m 4,0 h 1 m 3,0 h 3 m -15,2 h 3 m 7,0 h 4 m -12,1 h 3 m 4,0 h 4 m -16,1 h 1 m 9,0 h 1 m -10,1 h 1 m 1,0 h 2 m 4,0 h 2 m 4,0 h 1 m 2,0 h 1 m -18,1 h 3 m 5,0 h 2 m 1,0 h 1 m 2,0 h 1 m 1,0 h 2 m -8,1 h 3 m -7,1 h 6 m -7,1 h 2 m 4,0 h 1 m -7,1 h 1 m 4,0 h 2 m -6,1 h 5 m -4,-27 h 1 m 3,1 h 1 m 7,0 h 1 m -6,1 h 1 m -1,2 h 1 m 7,0 h 1 m -19,1 h 1 m 2,0 h 1 m -2,1 h 1 m -5,6 h 1 m 16,1 h 1 m -1,1 h 2 m -15,2 h 1 m -4,3 h 1 m 6,-19 h 1 m 7,2 h 1 m -20,5 h 1 m 8,2 h 1 m -9,5 h 1 m 5,1 h 1 m -2,3 h 1 m 4,4 h 1 m 4,0 h 1 m -7,1 h 1 m 3,-19 h 1 m -10,2 h 1 m 10,1 h 1 m 3,4 h 1 m -8,2 h 1 m 5,0 h 1 m -16,1 h 1 m 9,0 h 1 m -5,2 h 1 m -10,4 h 1 m -3,-5 h 1"/><style>   @keyframes cf{0%{stroke: #303030;}10%{stroke: #0974f8;}20%{stroke: #fe81dd;}30%{stroke: #ff9000;}40%{stroke: #006e15;}50%{stroke: #fe81dd;}60%{stroke: #fbd81c;}70%{stroke: #608a1a;}80%{stroke: #202020;}90%{stroke: #e4e6f2;}}       .bg{animation:bg .05s .025s steps(1) infinite;} @keyframes bg{0%{fill: #161616;}50%{fill: #171717;}}   .x{animation: fr .3s steps(1) infinite,m2 .7s steps(2) infinite, cf 1s steps(1) infinite alternate;}   .y{animation: fr .3s .15s steps(1) infinite,m2 1s steps(3) infinite,cf 1s steps(1) infinite alternate;}   @keyframes m2{0%{transform: translate(0%, 0%)}50%{transform: translate(0%, -3%)}}   @keyframes fr {0%{opacity: 0;}50%{opacity: 1.0;}};} </style></svg>';
 
-    uint public lbrylength = 0;
-    uint public canvasLength = 0;
+    fallback() external payable {}
+    receive() external payable {}
 
-    string animationURL;
-    bool externalAnimation;
-
-    // Token name
-    string private _name;
-
-    // Token symbol
-    string private _symbol;
-
-    // Mapping from token ID to owner address
-    mapping(uint256 => address) private _owners;
-
-    // Mapping owner address to token count
-    mapping(address => uint256) private _balances;
-
-    // Mapping from token ID to approved address
-    mapping(uint256 => address) private _tokenApprovals;
-
-    // Mapping from owner to operator approvals
-    mapping(address => mapping(address => bool)) private _operatorApprovals;
-
-    //Terraforms.sol interface
-    Iterraforms terraforms = Iterraforms(0x4E1f41613c9084FdB9E34E11fAE9412427480e56);
-
-    //TerraformsData.sol interface
-    IterraformsData terraformsData = IterraformsData(0xA5aFC9fE76a28fB12C60954Ed6e2e5f8ceF64Ff2);
-
-    /**
-     * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
-     */
-    constructor(string memory name_, string memory symbol_) {
-        _name = name_;
-        _symbol = symbol_;
-    }
-
-    function getCanvas(uint tokenId) public view returns (uint[] memory) {
-        return (canvases[tokenId].canvas);
-    }
-
-     function getLbry(uint tokenId) public view returns (string memory) {
-        return (lbrys[tokenId].lbry);
-    }
-
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
-        return
-            interfaceId == type(IERC721).interfaceId ||
-            interfaceId == type(IERC721Metadata).interfaceId ||
-            super.supportsInterface(interfaceId);
-    }
-
-    /**
-     * @dev See {IERC721-balanceOf}.
-     */
-    function balanceOf(address owner) public view virtual override returns (uint256) {
-        require(owner != address(0), "ERC721: address zero is not a valid owner");
-        return _balances[owner];
-    }
-
-    /**
-     * @dev See {IERC721-ownerOf}.
-     */
-    function ownerOf(uint256 tokenId) public view virtual override returns (address) {
-        address owner = _ownerOf(tokenId);
-        require(owner != address(0), "ERC721: invalid token ID");
-        return owner;
-    }
-
-    /**
-     * @dev See {IERC721Metadata-name}.
-     */
-    function name() public view virtual override returns (string memory) {
-        return _name;
-    }
-
-    /**
-     * @dev See {IERC721Metadata-symbol}.
-     */
-    function symbol() public view virtual override returns (string memory) {
-        return _symbol;
-    }
-
-    /**
-     * @dev See {IERC721Metadata-tokenURI}.
-     */
-  function tokenURI(uint256 tokenId) public view virtual override returns (string memory result) {
-    string memory animationURI;
-    if (externalAnimation == true){
-            animationURI = string(
-                abi.encodePacked(
-                    animationURL,
-                    tokenId,
-                    ".html"
-                )
-            );
-        } else { 
-            animationURI = string(
-                abi.encodePacked(
-                    animationURL,
-                    tokenHTML(tokenId)
-                )
-            );
-        }
-
-    result = string(  
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     * PUBLIC: TOKEN DATA
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    /// @notice A placeholder tokenURI endpoint while tokens are not revealed
+    /// @param tokenId The token ID
+    /// @return A base64 encoded JSON string
+    function prerevealURI(uint tokenId) public view returns (string memory) {
+        return string(
             abi.encodePacked(
-                'data:application/json;base64,',
+                'data:application/json;base64,', 
                 Base64.encode(
                     abi.encodePacked(
-                        '{"name":"',
-                        tokenMetas[tokenId].title,
-                        '","description":"',
-                        tokenMetas[tokenId].description,
-                        '","artist":"',
-                        tokenMetas[tokenId].artist,
-                        '","terraform":"',
-                        Strings.toString(tokenMetas[tokenId].terraformId),
-                        abi.encodePacked(
-                        '","animation_URL":"',
-                        animationURI
-                        ),
-                        '","image": "data:image/svg+xml;base64,',
+                        '{"name":"Terraform #',
+                        ToString.toString(tokenId), 
+                        '","description": "Terraforms by Mathcastles. Onchain land art from a dynamically generated, onchain 3D world."',
+                        ',"image": "data:image/svg+xml;base64,',
                         Base64.encode(
-                        abi.encodePacked(coverSVG(tokenId))
-                    ),
+                            abi.encodePacked(prerevealSVG)
+                        ),
                         '"}'
                     )
                 )
@@ -246,570 +140,999 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
         );
     }
 
-    function updatetokenURI (string memory call, bool direction) public virtual  {
-        animationURL = call;
-        externalAnimation == direction;
-    }
+    /// @notice Returns a token's tokenURI
+    /// @param tokenId The token ID
+    /// @param status The token's status
+    /// @param placement Placement of token on level/tile before rotation
+    /// @param seed Seed used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param canvas The canvas data of a (dreaming) token
+    /// @return result A base64 encoded JSON string
+    function tokenURI(
+        uint tokenId,
+        uint status,
+        uint placement, 
+        uint seed, 
+        uint decay, 
+        uint[] memory canvas
+    ) 
+        public 
+        view 
+        returns (string memory result) 
+    {
+        tokenURIContext memory ctx; // Track local variables
 
-    function tokenHTML(uint256 tokenId) public view virtual returns (string memory) {
-        return string(
+        ctx.p = svgParameters( // Generate parameters for creating SVG
+            status,
+            placement, 
+            seed, 
+            decay, 
+            canvas
+        );
+
+        ctx.a = animationParameters(placement, seed); // Generate anim params
+
+        // If there is no external URL for animation or image, we are returning
+        // an SVG from the contract, so generate the SVG
+        // SVG is returned in sections, so we can assemble static and animated
+        // images
+        if (bytes(animationURL).length == 0 || bytes(imageURL).length == 0){
+            (
+                ctx.svgMain, 
+                ctx.animations,
+                ctx.script
+            ) = terraformsSVG.makeSVG(ctx.p, ctx.a);
+        }
+        
+        // If there is no external animation URL, return an animated SVG
+        if (bytes(animationURL).length == 0){
+            ctx.animationURI = string(
+                abi.encodePacked(
+                    ', "animation_url":"data:text/html;charset=utf-8,<html><head><meta charset=\'UTF-8\'><style>html,body,svg{margin:0;padding:0; height:100%;text-align:center;}</style></head><body>',
+                    ctx.svgMain, 
+                    ctx.animations,
+                    '</style>',
+                    ctx.script,
+                    '</svg></body></html>"'
+                )
+            );
+        } else { // Otherwise, include the external URL with the tokenId
+            ctx.animationURI = string(
+                abi.encodePacked(
+                    ', "animation_url":"',
+                    animationURL, 
+                    ToString.toString(tokenId),
+                    '"'
+                )
+            );
+        }
+
+        // If there is no external image URL, return an SVG w/o animation or JS    
+       if (bytes(imageURL).length == 0){
+            ctx.imageURI = string(
+                abi.encodePacked(
+                    '}], "image": "data:image/svg+xml;base64,',
+                    Base64.encode(
+                        abi.encodePacked(ctx.svgMain,'</style></svg>')
+                    ),
+                    '"'
+                )
+            );
+        } else { // Otherwise, include the external URL with the tokenId
+            ctx.imageURI = string(
+                abi.encodePacked(
+                    '}], "image":"',
+                    imageURL, 
+                    ToString.toString(tokenId),
+                    '"'
+                )
+            );
+        }
+
+        // Determine the token's activation
+        if (ctx.a.activation == ITerraformsSVG.Activation.Plague) {
+            ctx.activation = "Plague";
+        } else if (ctx.a.duration == durations[0]){
+            ctx.activation = "Hyper";
+        } else if (ctx.a.duration == durations[1]) {
+            ctx.activation = "Pulse";
+        } else {
+            ctx.activation = "Flow";
+        }
+
+        // Determine the token's status
+        if (ctx.p.status == 0) {
+            ctx.mode = "Terrain";
+        } else if (ctx.p.status == 1) {
+            ctx.mode = "Daydream";
+        } else if (ctx.p.status == 2) {
+            ctx.mode = "Terraform";
+        } else if (ctx.p.status == 3) {
+            ctx.mode = "Origin Daydream";
+        } else {
+            ctx.mode = "Origin Terraform";
+        }
+
+        ctx.name = string(
             abi.encodePacked(
-                "<html><head><meta charset='UTF-8'><style>html,body,svg{margin:0;padding:0; height:100%;text-align:center;}</style></head><body>", 
-                tokenSVG(tokenId), 
-                "</body></html>"
+                'Level ',
+                ToString.toString(ctx.p.level + 1),
+                ' at {',
+                ToString.toString(
+                    ctx.p.tile % levelDimensions[ctx.p.level]
+                ),
+                ', ',
+                ToString.toString(
+                    ctx.p.tile / levelDimensions[ctx.p.level]
+                ),
+                '}'
+            )
+        );
+
+        // Generate tokenURI string
+        result = string(
+            abi.encodePacked(
+                'data:application/json;base64,', 
+                Base64.encode(
+                    abi.encodePacked(
+                        '{"name":"',
+                        ctx.name,
+                        '","description": "Terraforms by Mathcastles. Onchain land art from a dynamically generated, onchain 3D world."',
+                        ctx.animationURI,
+                        ', "aspect_ratio":0.6929, "attributes": [{"trait_type":"Level","value":',
+                        ToString.toString(ctx.p.level + 1),
+                        '},{"trait_type":"X Coordinate","value":"',
+                        ToString.toString(
+                            ctx.p.tile % levelDimensions[ctx.p.level]
+                        ),
+                        '"},{"trait_type":"Y Coordinate","value":"',
+                        ToString.toString(
+                            ctx.p.tile / levelDimensions[ctx.p.level]
+                        ),
+                        '"},{"trait_type":"Mode","value":"',
+                        ctx.mode,
+                        '"},{"trait_type":"Zone","value":"',
+                        ctx.p.zoneName,
+                        '"},{"trait_type":"Biome","value":"',
+                        ToString.toString(ctx.p.charsIndex),
+                        '"},{"trait_type":"Chroma","value":"',
+                        ctx.activation,
+                         '"},{"trait_type":"',
+                        resourceName,
+                         '","value":',
+                        ToString.toString(ctx.p.resourceLvl),         
+                        ctx.imageURI,
+                        '}'
+                    )
+                )
             )
         );
     }
 
-    function _topComp(uint loop, uint tokenId)
+    /// @notice Returns an SVG of a token
+    /// @param status The token's status
+    /// @param placement Placement of token on level/tile before rotation
+    /// @param seed Seed used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param canvas The canvas data of a (dreaming) token
+    /// @return A plaintext SVG string
+    function tokenSVG(
+        uint status,
+        uint placement, 
+        uint seed, 
+        uint decay, 
+        uint[] memory canvas
+    ) 
         public 
         view 
-        virtual
-        returns (string memory)  {
-        string memory result;    
-        for (uint i = 0; i < loop; i++) {
-            result = string(abi.encodePacked(result, lbrys[tokenMetas[tokenId].topLbry[i]].lbry));
-        }
-        return string ( 
-                result
-        );
-    }
-
-    function _botComp(uint loop, uint tokenId)
-        public 
-        view 
-        virtual
-        returns (string memory)  {
-        string memory result;    
-        for (uint i = 0; i < loop; i++) {
-            result = string(abi.encodePacked(result, lbrys[tokenMetas[tokenId].botLbry[i]].lbry));
-        }
-        return string ( 
-                result
-        );
-    }
-
-    function tokenSVG(uint tokenId) 
-        public 
-        view 
-        virtual
         returns (string memory) 
     {
-       return string (
-                abi.encodePacked (
-                    _topComp(tokenMetas[tokenId].loop, tokenId),
-                    terraformsData.tokenSVG(
-                    3, 
-                    terraforms.tokenToPlacement(tokenMetas[tokenId].terraformId), 
-                    10196, 
-                    0, 
-                    canvases[tokenMetas[tokenId].canvasLbry].canvas
-                    ),
-                    _botComp(tokenMetas[tokenId].loop, tokenId)
-                )
-            );
+        // Generate parameters for SVG
+        ITerraformsSVG.SVGParams memory p = svgParameters(
+            status,
+            placement, 
+            seed, 
+            decay, 
+            canvas
+        );
+
+        // Generate parameters for animation
+        ITerraformsSVG.AnimParams memory a = animationParameters(
+            placement, 
+            seed
+        );
+
+        // SVG is in sections, so we can assemble static and animated images
+        (
+            string memory svgMain, 
+            string memory animations,
+            string memory script
+        ) = terraformsSVG.makeSVG(p, a);
+
+        return string(
+            abi.encodePacked
+            (svgMain, 
+            animations, 
+            '</style>',
+            script,
+            '</svg>')); 
     }
 
-    function coverSVG(uint tokenId) 
+    /// @notice Returns HTML with the token's SVG as plaintext
+    /// @param status The token's status
+    /// @param placement Placement of token on level/tile before rotation
+    /// @param seed Seed used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param canvas The canvas data of a (dreaming) token
+    /// @return A plaintext HTML string
+    function tokenHTML(
+        uint status,
+        uint placement, 
+        uint seed, 
+        uint decay, 
+        uint[] memory canvas
+    ) 
         public 
         view 
-        virtual
         returns (string memory) 
     {
-       return string (
-                abi.encodePacked (
-                    terraformsData.tokenSVG(
-                    3, 
-                    terraforms.tokenToPlacement(tokenMetas[tokenId].terraformId), 
-                    10196, 
-                    0, 
-                    canvases[tokenMetas[tokenId].coverLbry].canvas
-                    )
-                )
-            );
+        ITerraformsSVG.SVGParams memory p = svgParameters(
+            status,
+            placement, 
+            seed, 
+            decay, 
+            canvas
+        );
+
+        ITerraformsSVG.AnimParams memory a = animationParameters(
+            placement, 
+            seed
+        );
+
+        (
+            string memory svgMain, 
+            string memory animations,
+            string memory script
+        ) = terraformsSVG.makeSVG(p, a);
+
+        // Wrap the SVG in HTML tags
+        return string(
+            abi.encodePacked(
+                "<html><head><meta charset='UTF-8'><style>html,body,svg{margin:0;padding:0; height:100%;text-align:center;}</style></head><body>",
+                svgMain,
+                animations,
+                '</style>',
+                script,
+                "</svg></body></html>"
+            )
+        );
     }
 
-        function dreamSVG(uint _terraformId, uint tokenId) 
+    /// @notice Returns the characters of a token
+    /// @param status The token's status
+    /// @param placement Placement of token on level/tile before rotation
+    /// @param seed Seed used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param canvas The canvas data of a (dreaming) token
+    /// @return result A 2D array of characters (strings)
+    function tokenCharacters(
+        uint status,
+        uint placement, 
+        uint seed, 
+        uint decay, 
+        uint[] memory canvas
+    ) 
         public 
         view 
-        virtual
-        returns (string memory) 
+        returns (string[32][32] memory result) 
     {
-       return string (
-                abi.encodePacked (
-                    _topComp(tokenMetas[tokenId].loop, tokenId),
-                    terraformsData.tokenSVG(
-                    3, 
-                    terraforms.tokenToPlacement( _terraformId), 
-                    10196, 
-                    0, 
-                    canvases[tokenMetas[tokenId].canvasLbry].canvas
-                    ),
-                    _botComp(tokenMetas[tokenId].loop, tokenId)
-                )
-            );
-    }
-  
-    function editToken(uint tokenId, uint _terraformId) public virtual {
-        uint placement = terraforms.tokenToPlacement(_terraformId);
-        (uint tokenLevel, ) = terraformsData.levelAndTile(placement, 10196);
-        /*
-        require (
-            msg.sender == terraforms.ownerOf(_terraformId),
-            "ERC721: caller is not terraform owner"
+        // Get the token's character set
+        (string[9] memory chars, , , ) = characterSet(placement, seed);
+
+        // Get the token's heightmap (values correspond to character indices)
+        uint[32][32] memory indices = tokenHeightmapIndices(
+            status,
+            placement, 
+            seed, 
+            decay, 
+            canvas
         );
-        */
-        require (
-        tokenMetas[tokenId].level == tokenLevel + 1, 
-        "ERC721: invalid token level"
-        );
-        require(
-            _exists(tokenId), "ERC721: invalid token ID"
-        );
-        tokenMetas[tokenId].terraformId = _terraformId;
+
+        // Translate the indices to characters. If the index is 9, it represents
+        // the background, so we put a space instead
+        for (uint y; y < TOKEN_DIMS; y++) {
+    	    for (uint x; x < TOKEN_DIMS; x++) {
+                result[y][x] = indices[y][x] < 9 ? chars[indices[y][x]] : " ";
+    	    }
+    	}
+
+    	return result;
     }
 
-    /**
-     * @dev Base URI for computing {tokenURI}. If set, the resulting URI for each
-     * token will be the concatenation of the `baseURI` and the `tokenId`. Empty
-     * by default, can be overridden in child contracts.
-     */
-    function _baseURI() internal view virtual returns (string memory) {
-        return "";
-    }
+    /// @notice Returns the numbers used to create a token's topography
+    /// @dev Values are positions in 3D space. Not applicable to dreaming tokens
+    /// @param placement Placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @return result A 2D array of ints
+    function tokenTerrain(uint placement, uint seed, uint decay) 
+        public 
+        view 
+        returns (int[32][32] memory result) 
+    {
+        // The step is the increment in the noise space between each element
+        // of the token
+        int step = STEP;
 
-    /**
-     * @dev See {IERC721-approve}.
-     */
-    function approve(address to, uint256 tokenId) public virtual override {
-        address owner = level.ownerOf(tokenId);
-        require(to != owner, "ERC721: approval to current owner");
-        require(
-            _msgSender() == owner || isApprovedForAll(owner, _msgSender()),
-            "ERC721: approve caller is not token owner or approved for all"
-        );
-        _approve(to, tokenId);
-    }
-
-    function mint(address to, uint256 tokenId, uint[] memory _topLbry, uint[] memory _botLbry, uint _canvasLbry, uint _coverLbry, uint _loop, uint _terraformId, string memory _title, string memory _description, string memory _collection) public virtual onlyOwner {
-        uint placement = terraforms.tokenToPlacement(_terraformId);
-        (uint tokenLevel, ) = terraformsData.levelAndTile(placement, 10196);
-        uint realLvl = tokenLevel + 1;
-        tokenMetas[tokenId] = tokenMeta(_terraformId, realLvl, _topLbry, _botLbry, _coverLbry, _canvasLbry, _loop, _title, _description, _collection);
-        _mint(to, tokenId);
-    }
-
-    function addLbry(string memory _script) public virtual onlyOwner{
-         lbrys[lbrylength + 1] = lbry(_script); 
-         lbrylength += 1;
-    }
-    
-    function addCanvas(uint[] memory _canvas) public virtual onlyOwner{
-        canvases[canvasLength + 1] = canvas(_canvas);
-        canvasLength += 1;
-    }
-
-    function updateToken(uint256 tokenId, uint[] memory _topUp, uint[] memory _botUp, uint _canvasUp, uint _coverUp) public virtual onlyOwner {
-        tokenMetas[tokenId].topLbry =  _topUp;
-        tokenMetas[tokenId].botLbry =  _botUp;
-        tokenMetas[tokenId].canvasLbry =  _canvasUp;
-        tokenMetas[tokenId].coverLbry =  _coverUp;
-    }
-
-
-    /**
-     * @dev See {IERC721-getApproved}.
-     */
-    function getApproved(uint256 tokenId) public view virtual override returns (address) {
-        _requireMinted(tokenId);
-        return _tokenApprovals[tokenId];
-    }
-
-    /**
-     * @dev See {IERC721-setApprovalForAll}.
-     */
-    function setApprovalForAll(address operator, bool approved) public virtual override {
-        _setApprovalForAll(_msgSender(), operator, approved);
-    }
-
-    /**
-     * @dev See {IERC721-isApprovedForAll}.
-     */
-    function isApprovedForAll(address owner, address operator) public view virtual override returns (bool) {
-        return _operatorApprovals[owner][operator];
-    }
-
-    /**
-     * @dev See {IERC721-transferFrom}.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public virtual override {
-        //solhint-disable-next-line max-line-length
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
-
-        _transfer(from, to, tokenId);
-    }
-
-    /**
-     * @dev See {IERC721-safeTransferFrom}.
-     */
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public virtual override {
-        safeTransferFrom(from, to, tokenId, "");
-    }
-
-    /**
-     * @dev See {IERC721-safeTransferFrom}.
-     */
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
-        _safeTransfer(from, to, tokenId, data);
-    }
-
-    /**
-     * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
-     * are aware of the ERC721 protocol to prevent tokens from being forever locked.
-     *
-     * `data` is additional data, it has no specified format and it is sent in call to `to`.
-     *
-     * This internal function is equivalent to {safeTransferFrom}, and can be used to e.g.
-     * implement alternative mechanisms to perform token transfer, such as signature-based.
-     *
-     * Requirements:
-     *
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must exist and be owned by `from`.
-     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _safeTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) internal virtual {
-        _transfer(from, to, tokenId);
-        require(_checkOnERC721Received(from, to, tokenId, data), "ERC721: transfer to non ERC721Receiver implementer");
-    }
-
-    /**
-     * @dev Returns the owner of the `tokenId`. Does NOT revert if token doesn't exist
-     */
-    function _ownerOf(uint256 tokenId) internal view virtual returns (address) {
-        return _owners[tokenId];
-    }
-
-    /**
-     * @dev Returns whether `tokenId` exists.
-     *
-     * Tokens can be managed by their owner or approved accounts via {approve} or {setApprovalForAll}.
-     *
-     * Tokens start existing when they are minted (`_mint`),
-     * and stop existing when they are burned (`_burn`).
-     */
-    function _exists(uint256 tokenId) internal view virtual returns (bool) {
-        return _ownerOf(tokenId) != address(0);
-    }
-
-    /**
-     * @dev Returns whether `spender` is allowed to manage `tokenId`.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
-     */
-    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual returns (bool) {
-        address owner = level.ownerOf(tokenId);
-        return (spender == owner || isApprovedForAll(owner, spender) || getApproved(tokenId) == spender);
-    }
-
-    /**
-     * @dev Safely mints `tokenId` and transfers it to `to`.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must not exist.
-     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _safeMint(address to, uint256 tokenId) internal virtual {
-        _safeMint(to, tokenId, "");
-    }
-
-    /**
-     * @dev Same as {xref-ERC721-_safeMint-address-uint256-}[`_safeMint`], with an additional `data` parameter which is
-     * forwarded in {IERC721Receiver-onERC721Received} to contract recipients.
-     */
-    function _safeMint(
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) internal virtual {
-        _mint(to, tokenId);
-        require(
-            _checkOnERC721Received(address(0), to, tokenId, data),
-            "ERC721: transfer to non ERC721Receiver implementer"
-        );
-    }
-
-    /**
-     * @dev Mints `tokenId` and transfers it to `to`.
-     *
-     * WARNING: Usage of this method is discouraged, use {_safeMint} whenever possible
-     *
-     * Requirements:
-     *
-     * - `tokenId` must not exist.
-     * - `to` cannot be the zero address.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _mint(address to, uint256 tokenId) internal virtual {
-        require(to != address(0), "ERC721: mint to the zero address");
-        require(!_exists(tokenId), "ERC721: token already minted");
-
-        _beforeTokenTransfer(address(0), to, tokenId);
-
-        // Check that tokenId was not minted by `_beforeTokenTransfer` hook
-        require(!_exists(tokenId), "ERC721: token already minted");
-
-        unchecked {
-            // Will not overflow unless all 2**256 token ids are minted to the same owner.
-            // Given that tokens are minted one by one, it is impossible in practice that
-            // this ever happens. Might change if we allow batch minting.
-            // The ERC fails to describe this case.
-            _balances[to] += 1;
+        // If the structure has decayed for more than 100 years, the step sizes
+        // become larger, causing the token surface to collapse inward
+        if (decay > 100) { 
+            step += int(decay - 99) * 100;
         }
+        
+        // Determine the level and tile on which the token is located
+        (uint level, uint tile) = levelAndTile(placement, seed);
+        
+        // Obtain the XYZ origin for the token
+        int initX = xOrigin(level, tile, seed);
+        int yPos = yOrigin(level, tile, seed);
+        int zPos = zOrigin(level, tile, seed, decay, block.timestamp);
+        int xPos;
 
-        _owners[tokenId] = to;
-
-        emit Transfer(address(0), to, tokenId);
-
-        _afterTokenTransfer(address(0), to, tokenId);
+        // Populate 2D array
+    	for (uint y; y < TOKEN_DIMS; y++) {
+    	    xPos = initX; // Reset X for row alignment on each iteration
+    	    for (uint x; x < TOKEN_DIMS; x++) {
+    	    	result[y][x] = perlinNoise.noise3d(xPos, yPos, zPos);
+    	    	xPos += step;
+    	    }
+            yPos += step;
+    	}
+    	return result;
     }
 
-    /**
-     * @dev Destroys `tokenId`.
-     * The approval is cleared when the token is burned.
-     * This is an internal function that does not check if the sender is authorized to operate on the token.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _burn(uint256 tokenId) internal virtual {
-        address owner = level.ownerOf(tokenId);
+    /// @notice Returns a 2D array of indices into a char array
+    /// @param status The token's status
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param canvas The canvas data of a (dreaming) token
+    /// @return result A 2D array of uints to index into a char array
+    function tokenHeightmapIndices(
+        uint status,
+        uint placement, 
+        uint seed, 
+        uint decay, 
+        uint[] memory canvas
+    ) 
+        public 
+        view 
+        returns (uint[32][32] memory result) 
+    {
+        // If the token is in terrain mode, generate terrain
+        if (Status(status) == Status.Terrain){
+            int[32][32] memory values = tokenTerrain(placement, seed, decay);
 
-        _beforeTokenTransfer(owner, address(0), tokenId);
-
-        // Update ownership in case tokenId was transferred by `_beforeTokenTransfer` hook
-        owner = level.ownerOf(tokenId);
-
-        // Clear approvals
-        delete _tokenApprovals[tokenId];
-
-        unchecked {
-            // Cannot overflow, as that would require more tokens to be burned/transferred
-            // out than the owner initially received through minting and transferring in.
-            _balances[owner] -= 1;
-        }
-        delete _owners[tokenId];
-
-        emit Transfer(owner, address(0), tokenId);
-
-        _afterTokenTransfer(owner, address(0), tokenId);
-    }
-
-    /**
-     * @dev Transfers `tokenId` from `from` to `to`.
-     *  As opposed to {transferFrom}, this imposes no restrictions on msg.sender.
-     *
-     * Requirements:
-     *
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must be owned by `from`.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _transfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual {
-        require(level.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
-        require(to != address(0), "ERC721: transfer to the zero address");
-
-        _beforeTokenTransfer(from, to, tokenId);
-
-        // Check that tokenId was not transferred by `_beforeTokenTransfer` hook
-        require(level.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
-
-        // Clear approvals from the previous owner
-        delete _tokenApprovals[tokenId];
-
-        unchecked {
-            // `_balances[from]` cannot overflow for the same reason as described in `_burn`:
-            // `from`'s balance is the number of token held, which is at least one before the current
-            // transfer.
-            // `_balances[to]` could overflow in the conditions described in `_mint`. That would require
-            // all 2**256 token ids to be minted, which in practice is impossible.
-            _balances[from] -= 1;
-            _balances[to] += 1;
-        }
-        _owners[tokenId] = to;
-
-        emit Transfer(from, to, tokenId);
-
-        _afterTokenTransfer(from, to, tokenId);
-    }
-
-    /**
-     * @dev Approve `to` to operate on `tokenId`
-     *
-     * Emits an {Approval} event.
-     */
-    function _approve(address to, uint256 tokenId) internal virtual {
-        _tokenApprovals[tokenId] = to;
-        emit Approval(level.ownerOf(tokenId), to, tokenId);
-    }
-
-    /**
-     * @dev Approve `operator` to operate on all of `owner` tokens
-     *
-     * Emits an {ApprovalForAll} event.
-     */
-    function _setApprovalForAll(
-        address owner,
-        address operator,
-        bool approved
-    ) internal virtual {
-        require(owner != operator, "ERC721: approve to caller");
-        _operatorApprovals[owner][operator] = approved;
-        emit ApprovalForAll(owner, operator, approved);
-    }
-
-    /**
-     * @dev Reverts if the `tokenId` has not been minted yet.
-     */
-    function _requireMinted(uint256 tokenId) internal view virtual {
-        require(_exists(tokenId), "ERC721: invalid token ID");
-    }
-
-    /**
-     * @dev Internal function to invoke {IERC721Receiver-onERC721Received} on a target address.
-     * The call is not executed if the target address is not a contract.
-     *
-     * @param from address representing the previous owner of the given token ID
-     * @param to target address that will receive the tokens
-     * @param tokenId uint256 ID of the token to be transferred
-     * @param data bytes optional data to send along with the call
-     * @return bool whether the call correctly returned the expected magic value
-     */
-    function _checkOnERC721Received(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) private returns (bool) {
-        if (to.isContract()) {
-            try IERC721Receiver(to).onERC721Received(_msgSender(), from, tokenId, data) returns (bytes4 retval) {
-                return retval == IERC721Receiver.onERC721Received.selector;
-            } catch (bytes memory reason) {
-                if (reason.length == 0) {
-                    revert("ERC721: transfer to non ERC721Receiver implementer");
-                } else {
-                    /// @solidity memory-safe-assembly
-                    assembly {
-                        revert(add(32, reason), mload(reason))
-                    }
+            // Convert terrain values to heightmap indices
+            for (uint y; y < TOKEN_DIMS; y++) {
+                for (uint x; x < TOKEN_DIMS; x++) {
+                    result[y][x] = heightmapIndexFromTerrainValue(values[y][x]);
                 }
             }
+        } else if (canvas.length == 16){ // If token is terraformed, draw it
+            uint digits;
+            uint counter;
+             // Iterate through canvas data
+            for (uint rowPair; rowPair < 16; rowPair++){
+                // Canvas data is from left to right, so we need to reverse
+                // the integers so we can isolate (modulo) the leftmost digits
+                digits = reverseUint(canvas[rowPair]);
+                for (uint digit; digit < 64; digit++){ // Read 64 digits
+                    result[counter / 32][counter % 32] = digits % 10;
+                    digits = digits / 10; // Shift down one digit
+                    counter += 1;
+                }
+            }
+        }
+        return result;
+    }
+
+    /// @notice Returns the XYZ origins of a level in 3D space
+    /// @param level The level of the superstructure
+    /// @param tile The token's tile placement
+    /// @param seed Value used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param timestamp The time queried (structure floats and decays in time)
+    /// @return Three ints representing the level's XYZ origins in 3D space
+    function tileOrigin(
+        uint level, 
+        uint tile, 
+        uint seed, 
+        uint decay, 
+        uint timestamp
+    )
+        public
+        view
+        returns (int, int, int)
+    {
+        return (
+            xOrigin(level, tile, seed),
+            yOrigin(level, tile, seed),
+            zOrigin(level, tile, seed, decay, timestamp)
+        );
+    }
+
+    /// @notice Returns the x origin of a token in 3D space
+    /// @param level The level of the superstructure
+    /// @param tile The token's tile placement
+    /// @param seed Value used to rotate initial token placement
+    /// @return A uint representing the tile's x origin in 3D space
+    function xOrigin(uint level, uint tile, uint seed) 
+        public 
+        view 
+        returns (int)
+    {
+        // Determine the dimensions (edge length) of the level
+        uint dimensions = levelDimensions[level];
+
+        // A token's x origin is measured in token lengths (STEP * TOKEN_DIMS)
+        // multiplied by a pseudorandom offset (seed), and then placed on the
+        // appropriate x coordinate on a level (tile % dimensions).
+        // Tiles are centered by adding (MAX_LEVEL_DIMS - dimensions) / 2
+        return STEP * int(TOKEN_DIMS) * int(
+            seed + // This is a pseudorandom value to offset the structure
+            (
+                (MAX_LEVEL_DIMS - dimensions) / 2 + // This centers the levels
+                (tile % dimensions) // This gets the x coordinate on the level
+            )
+        );
+    }
+    
+    /// @notice Returns the y origin of a token in 3D space 
+    /// @param level The level of the superstructure
+    /// @param tile The token's tile placement
+    /// @param seed Value used to rotate initial token placement
+    /// @return An int representing the tile's y origin in 3D space
+    function yOrigin(uint level, uint tile, uint seed) 
+        public 
+        view 
+        returns (int)
+    {
+        // A token's y origin is measured in token lengths (STEP * TOKEN_DIMS)
+        // multiplied by a pseudorandom offset (seed), and then placed on the
+        // appropriate y coordinate on a level (tile / dimensions).
+        // Tiles are centered by adding (MAX_LEVEL_DIMS - dimensions) / 2
+        uint dimensions = levelDimensions[level];
+        return STEP * int(TOKEN_DIMS) * int(
+            seed +
+            (
+                (MAX_LEVEL_DIMS - dimensions) / 2 +
+                (tile / dimensions)
+            )
+        );
+    }
+
+    /// @notice Returns the z origin of a token in 3D space
+    /// @param level The level of the superstructure
+    /// @param tile The token's tile placement
+    /// @param seed Value used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param timestamp The time queried (structure floats and decays in time)
+    /// @return An int representing the tile's z origin in 3D space
+    function zOrigin(
+        uint level, 
+        uint tile, 
+        uint seed, 
+        uint decay, 
+        uint timestamp
+    ) 
+        public 
+        view 
+        returns (int)
+    {
+        int zDecay;
+
+        // Check if structure is decaying
+        if (decay > 0) {
+            // If decay is less than 100 years, structure is collapsing
+            if (decay <= 100){ 
+                zDecay = (STEP / 100) * int(decay);
+            } else {
+                // Otherwise it has collapsed, and only the oscillation remains
+                return zOscillation(level, decay, timestamp);
+            }
+        }
+
+        return (
+            int(
+                (   // Provide a gap of 7 TOKEN_DIMS between layers
+                    (level + 1) * 7 + seed // Add seed for pseudorandom offset
+                ) * TOKEN_DIMS
+            // Create level topography: 3/4 * TOKEN_DIMS * elevation
+            ) + (24 * tokenElevation(level, tile, seed))
+        ) * 
+        (STEP - zDecay) + // Reduce stepsize by amount of decay (collapse)
+        zOscillation(level, decay, timestamp); // Add structure oscillation
+    }
+
+    /// @notice Changes a token's elevation on a level according to its zone
+    /// @param level The level of the superstructure
+    /// @param tile The token's tile placement
+    /// @param seed Value used to rotate initial token placement
+    /// @return A signed integer in range +-4
+    function tokenElevation(uint level, uint tile, uint seed) 
+        public 
+        view 
+        returns (int) 
+    {   
+        // Elevation is determined by the token's position on the level
+        // Elevation ranges from 4 (for heightmap index 0) to -4 (index 8)
+        return 4 - int(
+            heightmapIndexFromTerrainValue(
+                perlinPlacement(level, tile, seed, 1)
+            )
+        );
+    }
+
+    /// @notice Returns a token's zone, including its name and color scheme
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @return An array of hexadecimal strings and a string
+    function tokenZone(uint placement, uint seed) 
+        public
+        view
+        returns (string[10] memory, string memory)
+    {
+        // Get level and tile from placement and seed
+        (uint level, uint tile) =  levelAndTile(placement, seed);
+
+        // Get perlin noise value for token's location on level
+        int perlin = perlinPlacement(level, tile, seed, 1);
+
+        // Determine zone from token's position
+        (
+            string[10] memory colors, 
+            string memory name
+        ) = terraformsZones.tokenZone(
+            zoneStartingIndex[level] + 
+            heightmapIndexFromTerrainValue(perlin) % zonesOnLevel[level]
+        );
+
+        return (colors, name);
+    }
+
+    /// @notice Returns a token's character set
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @return charset An array of strings
+    /// @return font The index of the token's font
+    /// @return fontsize The token's font size
+    /// @return index The index of the character set in the storage array
+    function characterSet(uint placement, uint seed) 
+        public 
+        view 
+        returns (
+            string[9] memory charset,
+            uint font, 
+            uint fontsize,
+            uint index
+        )
+    {
+        // Characters are determined by level, so obtain it
+        (uint level, ) = levelAndTile(placement, seed);
+
+        // Pseudorandomly select placement into level's character distribution
+        uint rand = uint(
+            keccak256(abi.encodePacked(placement, seed, "chars"))
+        ) % 100;
+
+        // Character distributions are weighted per level. 
+        // Iterate through  until the sum exceeds our random placement
+        for (uint i; i < 9; i++){
+            index += charsetWeights[level][i];
+            if (rand < index) {
+                index = charsetIndices[i] + rand % charsetLengths[i];
+                (charset, font) = terraformsCharacters.characterSet(index);
+                fontsize = charsetFontsizes[index]; // Fontsize for these chars
+                return (charset, font, fontsize, index);
+            }
+        }
+    }
+
+    /// @notice Determines a token's level and its position on the level
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @return level The token's level number
+    /// @return tile The token's tile number
+    function levelAndTile(uint placement, uint seed) 
+        public 
+        view 
+        returns (uint level, uint tile) 
+    {
+        // Rotate a token's placement by pseudorandom seed value
+        uint rotated = rotatePlacement(placement, seed);
+        uint cur;
+        uint last;
+
+        // Determine level and tile from rotated placement by summing the tiles
+        // on each level until we find the level it's on
+        for (uint levelIndex; levelIndex < 20; levelIndex++){
+            cur += levelDimensions[levelIndex] ** 2;
+            if (rotated < cur){ // Found the level
+                // The tile is the rotated placement minus the placement of the
+                // first tile on the level
+                (level, tile) = (levelIndex, rotated - last);
+                return (level, tile);
+            }
+            last = cur; // track the last sum so we can find tile placement
+        }
+    }
+
+    /// @notice Returns the position on the z axis of a 2D level
+    /// @dev Z offset cycles over a two year period
+    /// @dev Intensity of the offset increases farther from center levels
+    /// @param level The level of the superstructure
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param timestamp The time queried (structure floats and decays in time)
+    /// @return result An int representing the altitude of the level
+    function zOscillation(uint level, uint decay, uint timestamp) 
+        public 
+        view 
+        returns (int result) 
+    {
+        int increment = 6; // base Z oscillation
+        int levelIntensifier; // levels at ends move a greater distance
+        int daysInCycle = 3650; // cycles every 10 years
+        int locationInCycle = int( // current day mod length of cycle
+            ((timestamp - INIT_TIME) / (1 days)) % uint(daysInCycle)
+        );
+
+        // if we're in the first half, the structure is floating up
+        if (locationInCycle < daysInCycle/2){
+            if (level > 9) { // top half moves faster when going up
+                // intensifier will be 5% per level away from center
+                levelIntensifier = int(level - 9); 
+            }
+        } else { // if we are in the last half we are floating down
+            increment *= -1; // change direction to downward
+            locationInCycle -= daysInCycle/2; // subtract 1/2 for simpler math
+            if (level < 9){ // bottom half moves faster when going down
+                levelIntensifier = int(9 - level); 
+            }
+        } 
+
+        // Structure pivots at 1/4 and 3/4 through the cycle
+        result = daysInCycle/4 - locationInCycle;
+        if (result < 0){ // take absolute val of distance from pivot
+            result *= -1;
+        }
+
+        // Z position is distance from pivot point multiplied by increment
+        result = (daysInCycle/4 - result) * increment;
+
+        // Add an intensifier based on distance from center
+        // Multiply and then divide by 20 since we can't do floating pt math
+        result += (result * levelIntensifier)/20;
+
+        // Dampen the result according to the level of decay
+        result = result / int(decay + 1);
+        
+        return result;
+    }
+
+    /// @notice Determines the amount of resource present on a token
+    /// @dev Queries external contract for amount, if address is present
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @return An unsigned integer
+    function resourceLevel(uint placement, uint seed) 
+        public 
+        view
+        returns (uint) 
+    {
+        // Resource level is determined by the token's location
+        (uint level, uint tile) = levelAndTile(placement, seed);
+
+        // Check if we are using an external source for resource values
+        if (resourceAddress == address(0)) { // If not, use perlin noise
+            int p = perlinPlacement(level, tile, seed, 3);
+            p = p < 0 ? -p : p; // Take absolute value
+            p = 54_000 - p; // Subtract from 54_000 (a high perlin value)
+            p = p < 0 ? -p : p; // Take absolute value again
+            return uint(p);
+        } else { // Otherwise, call that contract
+            return ITerraformsResource(resourceAddress).amount(
+                rotatePlacement(placement, seed)
+            );
+        }
+    }
+
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     * PUBLIC: ADMINISTRATIVE
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    /// @notice Sets external URL for token animations
+    /// @dev If set to the empty string, onchain animation will be used
+    /// @param url is the base URL for token animations
+    function setAnimationURL(string memory url) public onlyOwner {
+        animationURL = url;
+    }
+
+    /// @notice Sets external URL for token animations
+    /// @dev If set to the empty string, onchain image will be used
+    /// @param url is the base URL for token images
+    function setImageURL(string memory url) public onlyOwner {
+        imageURL = url;
+    }
+
+    /// @notice Sets resource name
+    /// @param name The resource name
+    function setResourceName(string memory name) public onlyOwner {
+        resourceName = name;
+    }
+
+    /// @notice Sets resource contract address
+    /// @param contractAddress The resource contract address
+    function setResourceAddress(address contractAddress) public onlyOwner {
+        resourceAddress = contractAddress;
+    }
+
+    /// @notice Transfers the contract balance to the owner
+    function withdraw() public onlyOwner {
+        (bool success, ) = owner().call{value: address(this).balance}("");
+        require(success);
+    }
+
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     * INTERNAL: TOKEN DATA HELPERS
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    /// @notice Returns a perlin noise value for a token
+    /// @param level The level of the superstructure
+    /// @param tile The token's tile placement
+    /// @param seed Value used to rotate initial token placement
+    /// @param scale Multiplier for step size
+    /// @return An int representing a height value
+    function perlinPlacement(uint level, uint tile, uint seed, int scale) 
+        internal 
+        view 
+        returns (int)
+    {
+        // Stretch/shrink the step size to the size of the token's level
+        int stepsize = (STEP * int(TOKEN_DIMS)) / int(levelDimensions[level]);
+
+        // The reference XY is set as the center of the current level
+        // i.e. STEP*TOKEN_DIMS (a token width) * MAX_LEVEL_DIMS/2 (level midpt)
+        // + STEP*14 (the midpoint of the middle token) + 6619/2
+        // + 6619/2 (halfway through the middle step)
+        int refXY = STEP * 
+            (14 + int(seed + MAX_LEVEL_DIMS/2) * int(TOKEN_DIMS)) +
+            3309;
+        
+        int result = perlinNoise.noise3d(
+            refXY + int(tile % levelDimensions[level]) * stepsize * scale, // x
+            refXY + int(tile / levelDimensions[level]) * stepsize * scale, // y
+            int((level+1) * TOKEN_DIMS * 2 + (seed*TOKEN_DIMS)) * STEP * scale // z
+        );
+
+        return result;
+    }
+
+    /// @notice Converts a numeric value into an index into a char array 
+    /// @dev Converts terrain values into characters
+    /// @param terrainValue An int from perlin noise
+    /// @return An integer to index into a character array
+    function heightmapIndexFromTerrainValue(int256 terrainValue) 
+        internal 
+        view 
+        returns (uint) 
+    {
+        // Iterate through the topography array until we find an elem less than
+        // value
+        for (uint i; i < 8; i++) {
+            if (terrainValue > topography[i]) {
+                return i;
+            }
+        }
+        return 8; // if we fall through, return 8 (the lowest height value)
+    }
+
+    /// @notice Determines the direction of a tokens' resource animation
+    /// @dev Direction oscillates from 0-5 over a 10 day period
+    /// @return result an integer from 0 to 5 inclusive
+    function resourceDirection() internal view returns (int result) {
+        uint base = (block.timestamp % (10 days)) / (1 days);
+        int oscillator = 5 - int(base); // Pivot around 5 day point
+        result = oscillator < 0 ? -oscillator : oscillator; // absolute value
+    }
+    
+    /// @notice Returns a 2D array of characters
+    /// @param indices A 2D array of indices into a character array
+    /// @param chars A character array
+    /// @return result A 2D array of characters (strings)
+    function charsFromHeighmapIndices(
+        uint[32][32] memory indices, 
+        string[9] memory chars
+    ) 
+        internal 
+        pure 
+        returns (string[32][32] memory result) 
+    {
+        // Translate heightmap indices to characters. Each heightmap index
+        // corresponds to an index into a character array. If the index is 9,
+        // it indicates the background, so return a space.
+    	for (uint y; y < TOKEN_DIMS; y++) {
+    	    for (uint x; x < TOKEN_DIMS; x++) {
+                result[y][x] = indices[y][x] < 9 ? chars[indices[y][x]] : " ";
+    	    }
+    	}
+    	return result;
+    }
+
+    /// @notice Determines the animation style of a token  
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @return An Animation enum representing the type of animation
+    function getActivation(uint placement, uint seed) 
+        internal 
+        pure 
+        returns (ITerraformsSVG.Activation) 
+    {
+        // Pseudorandom selection, "activation" is a nonce
+        uint activation = uint(
+            keccak256(abi.encodePacked(placement, seed, "activation"))
+        ) % 10_000;
+
+        // 0.1% are Plague, the rest are Cascade
+        if (activation >= 9_990){
+            return  ITerraformsSVG.Activation.Plague;
         } else {
-            return true;
+            return  ITerraformsSVG.Activation.Cascade;
         }
     }
 
-    /**
-     * @dev Hook that is called before any (single) token transfer. This includes minting and burning.
-     * See {_beforeConsecutiveTokenTransfer}.
-     *
-     * Calling conditions:
-     *
-     * - When `from` and `to` are both non-zero, ``from``'s `tokenId` will be
-     * transferred to `to`.
-     * - When `from` is zero, `tokenId` will be minted for `to`.
-     * - When `to` is zero, ``from``'s `tokenId` will be burned.
-     * - `from` and `to` are never both zero.
-     *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual {}
-
-    /**
-     * @dev Hook that is called after any (single) transfer of tokens. This includes minting and burning.
-     * See {_afterConsecutiveTokenTransfer}.
-     *
-     * Calling conditions:
-     *
-     * - when `from` and `to` are both non-zero.
-     * - `from` and `to` are never both zero.
-     *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-     */
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual {}
-
-    /**
-     * @dev Hook that is called before "consecutive token transfers" as defined in ERC2309 and implemented in
-     * {ERC721Consecutive}.
-     * Calling conditions are similar to {_beforeTokenTransfer}.
-     */
-    function _beforeConsecutiveTokenTransfer(
-        address from,
-        address to,
-        uint256, /*first*/
-        uint96 size
-    ) internal virtual {
-        if (from != address(0)) {
-            _balances[from] -= size;
+    /// @notice Reverses an unsigned integer of up to 64 digits
+    /// @dev Digits past the 64th will be ignored
+    /// @param i The int to be reversed
+    /// @return result The reversed int
+    function reverseUint(uint i) internal pure returns (uint result) {
+        for (uint digit; digit < 64; digit++){
+            result = result * 10 + i % 10;
+            i = i / 10;
         }
-        if (to != address(0)) {
-            _balances[to] += size;
-        }
+
+        return result;        
     }
 
-    /**
-     * @dev Hook that is called after "consecutive token transfers" as defined in ERC2309 and implemented in
-     * {ERC721Consecutive}.
-     * Calling conditions are similar to {_afterTokenTransfer}.
-     */
-    function _afterConsecutiveTokenTransfer(
-        address, /*from*/
-        address, /*to*/
-        uint256, /*first*/
-        uint96 /*size*/
-    ) internal virtual {}
+    /// @notice Determines the animation style of a token  
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @return A uint representing the final rotated placement
+    function rotatePlacement(uint placement, uint seed)
+        internal 
+        pure 
+        returns (uint)
+    {
+        return (placement + seed) % MAX_SUPPLY;
+    }
+
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     * INTERNAL: HELPERS FOR SVG ASSEMBLY
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    /// @notice Returns the token's parameters to create the tokenURI and SVG
+    /// @param status The token's status
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @param decay Amount of decay affecting the superstructure
+    /// @param canvas The canvas data of a (dreaming) token
+    /// @return p A SVGParams struct
+    function svgParameters(
+        uint status,
+        uint placement, 
+        uint seed, 
+        uint decay, 
+        uint[] memory canvas
+    ) 
+        internal 
+        view 
+        returns (ITerraformsSVG.SVGParams memory p) 
+    {
+        p.status = status;
+        (p.level, p.tile) = levelAndTile(placement, seed);
+        p.resourceLvl = resourceLevel(placement, seed);
+        p.resourceDirection = uint(resourceDirection()); 
+        (p.zoneColors, p.zoneName) = tokenZone(placement, seed);
+        (p.chars, p.font, p.fontSize, p.charsIndex) = characterSet(
+            placement, 
+            seed
+        );
+        p.heightmapIndices = tokenHeightmapIndices(
+            status, 
+            placement, 
+            seed, 
+            decay, 
+            canvas
+        );
+        
+        return p;
+    }
+
+    /// @notice Determines CSS styles based on a token's animation type
+    /// @param placement The placement of token on level/tile before rotation
+    /// @param seed Value used to rotate initial token placement
+    /// @return a An AnimParams struct
+    function animationParameters(uint placement, uint seed) 
+        internal 
+        view 
+        returns (ITerraformsSVG.AnimParams memory a) 
+    {
+        // Use pseudorandom value for determining animation
+        uint sorter = uint(keccak256(abi.encodePacked(placement, seed)));
+        a.activation = getActivation(placement, seed);
+
+        // Baseline animation keyframes ('ms' is for string concatenation later)
+        a.easing = 'ms steps(1)';
+
+        if (a.activation == ITerraformsSVG.Activation.Plague) {
+            a.classesAnimated = 876543210; // All classes are animated
+            a.duration = 100 + (sorter % 400); // Speed from 100 to 500 ms
+            a.durationInc = a.duration; // Duration increases for each class
+            if (sorter % 2 == 0){ // Half of the animations are delayed by 2-4s
+                a.delay = 2000 + (sorter % 2000);
+                a.delayInc = a.delay;
+                a.bgDelay = a.delay * 11;
+            }
+            a.bgDuration = 50; // Backgrounds are animated at high speed
+            a.altColors = altColors[(sorter / 10) % 7]; // Alternate colors
+        } else { // If token activation is not plague, determine animation amt
+            if ((sorter / 1000) % 100 < 50){
+                a.classesAnimated = animatedClasses[2];
+            } else if ((sorter / 1000) % 100 < 80){
+                a.classesAnimated = animatedClasses[1];
+            } else {
+                a.classesAnimated = animatedClasses[0];
+            }
+            
+            // Determine animation speed
+            if (sorter % 100 < 60){
+                a.duration = durations[2];
+            } else if (sorter % 100 < 90) {
+                a.duration = durations[1];
+            } else {
+                a.duration = durations[0];
+            }
+            
+            // Determine animation rhythm
+            if ((sorter / 10_000) % 100 < 10){
+                a.delayInc = a.duration / 10;
+            } else {
+                if (a.classesAnimated > 100_000){
+                    a.delayInc = a.duration / 7;
+                } else if (a.classesAnimated > 10_000){
+                    a.delayInc = a.duration / 5;
+                } else {
+                    a.delayInc = a.duration / 4;
+                }
+            }
+            
+            // Use linear keyframes for all slow animations and for half of
+            // medium animations
+            if (
+                a.duration == durations[2] ||
+                (a.duration == durations[1] && (sorter / 100) % 100 >= 50)
+            ) {
+                a.easing = 'ms linear alternate both';
+            }
+
+            // Add a duration increment to 25% of tokens that are cascade
+            // and not fast animations
+            if(
+                a.activation == ITerraformsSVG.Activation.Cascade &&
+                sorter % 4 == 0 &&
+                a.duration != durations[0]
+            ) {
+                a.durationInc = a.duration / 5;
+            }
+        }
+
+        return a; 
+    }
 }
