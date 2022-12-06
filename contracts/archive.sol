@@ -2,6 +2,7 @@
 // OpenZeppelin Contracts (last updated v4.7.0) (token/ERC721/ERC721.sol)
 
 /*
+
       ██╗ ███████╗██╗   ██╗███████╗██╗                                            
       ██║ ██╔════╝██║   ██║██╔════╝██║                                            
 █████╗██║ █████╗  ██║   ██║█████╗  ██║█████╗                                      
@@ -15,7 +16,9 @@
 ██╔══██╗  ╚██╔╝         ██║   ██╔══██║██╔══╝  ██╔══██╗██╔══██║██║  ██║██║     ██║     
 ██████╔╝   ██║          ██║   ██║  ██║███████╗██████╔╝██║  ██║██████╔╝╚██████╗╚██████╗
 ╚═════╝    ╚═╝          ╚═╝   ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝
-An interactive art collection built fully on-chain with Terraforms by @mathcastles
+
+An interactive art collection built on-chain with Terraforms by @mathcastles
+
 --DISCLAIMER--
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
@@ -26,7 +29,9 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE SOFTWARE OR FROM
 OTHER DEALINGS IN THE SOFTWARE.
+
 Copyright 2022. All rights reserved.
+
 */
 
 pragma solidity ^0.8.0;
@@ -107,8 +112,11 @@ contract level is Context, ERC165, IERC721, IERC721Metadata, Ownable {
     uint public lbrylength = 0;
     uint public canvasLength = 0;
 
-    string animationURL;
-    bool externalAnimation;
+    // Animation url for internal and external asset
+    string public animationURL;
+
+    // Trigger for onchain HTML or offchain asset storage
+    bool public externalAnimation;
 
     // Token name
     string private _name;
