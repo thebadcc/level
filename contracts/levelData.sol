@@ -40,10 +40,12 @@ Copyright 2022. All rights reserved.
 pragma solidity ^0.8.0;
 
 import "./ToString.sol";
-import "./Base64.sol";
 import "./TerraformsDataInterfaces.sol";
 import "./TerraformsDataStorage.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Context.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Strings.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Base64.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
 
 /// @author xaltgeist
 /// @title Token data and tokenURI generation for the Terraforms contract
