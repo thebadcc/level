@@ -43,7 +43,7 @@ interface Ilevels {
     function tokenURI(uint) 
         external 
         view 
-        returns (uint);
+        returns (string memory);
         
 }
 /**
