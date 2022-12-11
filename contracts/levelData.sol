@@ -7,11 +7,11 @@
 █████╗██║ █████╗  ██║   ██║█████╗  ██║█████╗                                      
 ╚════╝██║ ██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚════╝                                      
       ██║ ███████╗ ╚████╔╝ ███████╗██║                                      
-      ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝ Data v1                           
+      ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝ DATA v:alpha                         
 
-By: thebadcc                                      
+by: thebadcc                                      
 
-A permissioned Terraform derivative framework.
+A permissioned Terraforms derivative framework.
 
 --DISCLAIMER--
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
