@@ -7,9 +7,17 @@
         <body>
                 
         <script>
+
+                let url = '';
+fetch(url)
+  .then(r => r.json())
+  .then( r=> {
+   console.log(r.result);
 const parser = new DOMParser();
-const tokenURI = ;
-document.body.appendChild(parser.parseFromString(tokenURI, 'text/xml').firstChild)
+document.body.appendChild(parser.parseFromString(r.result, 'text/xml').firstChild)
+  })
+});
+
                 </script>
         </body>
 </html>
