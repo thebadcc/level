@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (token/ERC721/ERC721.sol)
 
 /*
 
@@ -9,15 +8,10 @@
 ╚════╝██║ ██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚════╝                                      
       ██║ ███████╗ ╚████╔╝ ███████╗██║                                      
       ╚═╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝ Data v1                           
-                                                                                      
-██████╗ ██╗   ██╗    ████████╗██╗  ██╗███████╗██████╗  █████╗ ██████╗  ██████╗ ██████╗
-██╔══██╗╚██╗ ██╔╝    ╚══██╔══╝██║  ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝
-██████╔╝ ╚████╔╝        ██║   ███████║█████╗  ██████╔╝███████║██║  ██║██║     ██║     
-██╔══██╗  ╚██╔╝         ██║   ██╔══██║██╔══╝  ██╔══██╗██╔══██║██║  ██║██║     ██║     
-██████╔╝   ██║          ██║   ██║  ██║███████╗██████╔╝██║  ██║██████╔╝╚██████╗╚██████╗
-╚═════╝    ╚═╝          ╚═╝   ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝
 
-An interactive art collection built on-chain with Terraforms by @mathcastles
+By: thebadcc                                      
+
+A permissioned Terraform derivative framework.
 
 --DISCLAIMER--
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,14 +41,14 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
 
 
-/**
- * @dev Implementation of https://eips.ethereum.org/EIPS/eip-721[ERC721] Non-Fungible Token Standard, including
- * the Metadata extension, but not including the Enumerable extension, which is available separately as
- * {ERC721Enumerable}.
- */
 interface Iterraforms {
   
     function tokenToPlacement(uint) 
+        external 
+        view 
+        returns (uint);
+
+    function tokenToStatus(uint) 
         external 
         view 
         returns (uint);
@@ -92,7 +86,7 @@ contract level is Context, Ownable {
         uint256[] canvas;
     }
 
-    struct tokenMeta{
+    struct tokenParam{
         uint terraformId;
         uint level;
         uint[] topLbry;
@@ -106,7 +100,7 @@ contract level is Context, Ownable {
 
     mapping(uint => lbry) private lbrys;
     mapping(uint => canvas) canvases;
-    mapping(uint => tokenMeta) public tokenMetas;
+    mapping(uint => tokenParam) public tokenParams;
 
     uint public lbrylength = 0;
     uint public canvasLength = 0;
@@ -115,22 +109,10 @@ contract level is Context, Ownable {
     string public animationURL;
 
     // Trigger for onchain HTML or offchain asset storage
-    bool public externalAnimation;
+    bool public externalAnimation = false;
 
     // Token name
     string private _name;
-
-    // Mapping from token ID to owner address
-    mapping(uint256 => address) private _owners;
-
-    // Mapping owner address to token count
-    mapping(address => uint256) private _balances;
-
-    // Mapping from token ID to approved address
-    mapping(uint256 => address) private _tokenApprovals;
-
-    // Mapping from owner to operator approvals
-    mapping(address => mapping(address => bool)) private _operatorApprovals;
 
     //Terraforms.sol interface
     Iterraforms terraforms = Iterraforms(0x4E1f41613c9084FdB9E34E11fAE9412427480e56);
@@ -138,9 +120,6 @@ contract level is Context, Ownable {
     //TerraformsData.sol interface
     IterraformsData terraformsData = IterraformsData(0xA5aFC9fE76a28fB12C60954Ed6e2e5f8ceF64Ff2);
 
-    /**
-     * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
-     */
     constructor(string memory name_) {
         _name = name_;
     }
@@ -153,26 +132,35 @@ contract level is Context, Ownable {
         return (lbrys[tokenId].lbry);
     }
 
-    /**
-     * @dev See {IERC721Metadata-tokenURI}.
-     */
-  function tokenURI(uint256 tokenId) public view virtual returns (string memory result) {
-
+    
+    function tokenURI(uint256 tokenId) public view virtual returns (string memory result) {
+    string memory animation;
+    if (externalAnimation == true) {
+        animation = string(abi.encodePacked(
+            animationURL,
+            Strings.toString(tokenId)
+        ));
+    } else {
+        animation = string(abi.encodePacked(
+            animationURL,
+            tokenHTML(tokenId)
+        ));
+    }
     result = string(  
             abi.encodePacked(
                 'data:application/json;base64,',
                 Base64.encode(
                     abi.encodePacked(
                         '{"name":"',
-                        tokenMetas[tokenId].title,
+                        tokenParams[tokenId].title,
                         '","description":"',
-                        tokenMetas[tokenId].description,
+                        tokenParams[tokenId].description,
                         '","artist":"',
-                        tokenMetas[tokenId].artist,
+                        tokenParams[tokenId].artist,
                         '","terraform":"',
-                        Strings.toString(tokenMetas[tokenId].terraformId),
-                        '","(animation_URL": "data:text/html;charset=utf-8,',
-                        tokenHTML(tokenId),
+                        Strings.toString(tokenParams[tokenId].terraformId),
+                        '","animation_URL":"',
+                        animation,
                         '","image": "data:image/svg+xml;base64,',
                         Base64.encode(
                         abi.encodePacked(tokenSVG(tokenId))
@@ -194,34 +182,6 @@ contract level is Context, Ownable {
         );
     }
 
-    function _topComp(uint loop, uint tokenId)
-        public 
-        view 
-        virtual
-        returns (string memory)  {
-        string memory result;    
-        for (uint i = 0; i < loop; i++) {
-            result = string(abi.encodePacked(result, lbrys[tokenMetas[tokenId].topLbry[i]].lbry));
-        }
-        return string ( 
-                result
-        );
-    }
-
-    function _botComp(uint loop, uint tokenId)
-        public 
-        view 
-        virtual
-        returns (string memory)  {
-        string memory result;    
-        for (uint i = 0; i < loop; i++) {
-            result = string(abi.encodePacked(result, lbrys[tokenMetas[tokenId].botLbry[i]].lbry));
-        }
-        return string ( 
-                result
-        );
-    }
-
     function tokenSVG(uint tokenId) 
         public 
         view 
@@ -231,11 +191,11 @@ contract level is Context, Ownable {
         string memory svgSeed;
         
         svgSeed = terraformsData.tokenSVG(
-                    3, 
-                    terraforms.tokenToPlacement(tokenMetas[tokenId].terraformId), 
+                    terraforms.tokenToStatus(tokenParams[tokenId].terraformId), 
+                    terraforms.tokenToPlacement(tokenParams[tokenId].terraformId), 
                     10196, 
                     0, 
-                    canvases[tokenMetas[tokenId].canvasLbry].canvas
+                    canvases[tokenParams[tokenId].canvasLbry].canvas
                 );
         bytes memory _bytes=bytes(svgSeed);
     
@@ -246,8 +206,8 @@ contract level is Context, Ownable {
            return string(
                 abi.encodePacked (
                trimmed_bytes,
-               _topComp(tokenMetas[tokenId].loop, tokenId),
-               _botComp(tokenMetas[tokenId].loop, tokenId),
+               _topComp(tokenParams[tokenId].loop, tokenId),
+               _botComp(tokenParams[tokenId].loop, tokenId),
                "</svg>"
                 )
                );
@@ -262,11 +222,11 @@ contract level is Context, Ownable {
         string memory svgSeed;
         
         svgSeed = terraformsData.tokenSVG(
-                    3, 
+                    terraforms.tokenToStatus(tokenParams[tokenId].terraformId),  
                     terraforms.tokenToPlacement(_terraformId), 
                     10196, 
                     0, 
-                    canvases[tokenMetas[tokenId].canvasLbry].canvas
+                    canvases[tokenParams[tokenId].canvasLbry].canvas
                 );
         bytes memory _bytes=bytes(svgSeed);
     
@@ -277,8 +237,8 @@ contract level is Context, Ownable {
            return string(
                 abi.encodePacked (
                trimmed_bytes,
-               _topComp(tokenMetas[tokenId].loop, tokenId),
-               _botComp(tokenMetas[tokenId].loop, tokenId),
+               _topComp(tokenParams[tokenId].loop, tokenId),
+               _botComp(tokenParams[tokenId].loop, tokenId),
                "</svg>"
                 )
                );
@@ -294,32 +254,20 @@ contract level is Context, Ownable {
         );
         */
         require (
-        tokenMetas[tokenId].level == tokenLevel + 1, 
+        tokenParams[tokenId].level == tokenLevel + 1, 
         "ERC721: invalid token level"
         );
         require(
             _exists(tokenId), "ERC721: invalid token ID"
         );
-        tokenMetas[tokenId].terraformId = _terraformId;
+        tokenParams[tokenId].terraformId = _terraformId;
     }
 
-        /**
-     * @dev Returns whether `tokenId` exists.
-     *
-     * Tokens can be managed by their owner or approved accounts via {approve} or {setApprovalForAll}.
-     *
-     * Tokens start existing when they are minted (`_mint`),
-     * and stop existing when they are burned (`_burn`).
-     */
-    function _exists(uint256 tokenId) internal view virtual returns (bool) {
-        return tokenMetas[tokenId].level != 0;
-    }
-
-    function create(uint256 tokenId, uint[] memory _topLbry, uint[] memory _botLbry, uint _canvasLbry, uint _loop, uint _terraformId, string memory _title, string memory _description, string memory _collection) public virtual onlyOwner {
+    function create(uint256 tokenId, uint[] memory _topLbry, uint[] memory _botLbry, uint _canvasLbry, uint _loop, uint _terraformId, string memory _title, string memory _description, string memory _artist) public virtual onlyOwner {
         uint placement = terraforms.tokenToPlacement(_terraformId);
         (uint tokenLevel, ) = terraformsData.levelAndTile(placement, 10196);
         uint realLvl = tokenLevel + 1;
-        tokenMetas[tokenId] = tokenMeta(_terraformId, realLvl, _topLbry, _botLbry, _canvasLbry, _loop, _title, _description, _collection);
+        tokenParams[tokenId] = tokenParam(_terraformId, realLvl, _topLbry, _botLbry, _canvasLbry, _loop, _title, _description, _artist);
     }
 
     function addLbry(string memory _script) public virtual onlyOwner{
@@ -332,10 +280,45 @@ contract level is Context, Ownable {
         canvasLength += 1;
     }
 
-    function updateToken(uint256 tokenId, uint[] memory _topUp, uint[] memory _botUp, uint _canvasUp) public virtual onlyOwner {
-        tokenMetas[tokenId].topLbry =  _topUp;
-        tokenMetas[tokenId].botLbry =  _botUp;
-        tokenMetas[tokenId].canvasLbry =  _canvasUp;
+    function updateToken(uint256 tokenId, uint[] memory _topUp, uint[] memory _botUp, uint _canvasUp, uint _loop) public virtual onlyOwner {
+        tokenParams[tokenId].topLbry =  _topUp;
+        tokenParams[tokenId].botLbry =  _botUp;
+        tokenParams[tokenId].canvasLbry =  _canvasUp;
+        tokenParams[tokenId].loop =  _loop;
     }
 
+    function updateExternal(string memory _animationURL, bool _externalAnimation) public virtual onlyOwner {
+        animationURL = _animationURL;
+        externalAnimation == _externalAnimation;
+        }
+
+    function _topComp(uint loop, uint tokenId)
+        private 
+        view 
+        returns (string memory)  {
+        string memory result;    
+        for (uint i = 0; i < loop; i++) {
+            result = string(abi.encodePacked(result, lbrys[tokenParams[tokenId].topLbry[i]].lbry));
+        }
+        return string ( 
+                result
+        );
+    }
+
+    function _botComp(uint loop, uint tokenId)
+        private 
+        view 
+        returns (string memory)  {
+        string memory result;    
+        for (uint i = 0; i < loop; i++) {
+            result = string(abi.encodePacked(result, lbrys[tokenParams[tokenId].botLbry[i]].lbry));
+        }
+        return string ( 
+                result
+        );
+    }
+
+    function _exists(uint256 tokenId) internal view virtual returns (bool) {
+        return tokenParams[tokenId].level != 0;
+    }
 }
