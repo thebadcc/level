@@ -1,0 +1,52 @@
+<script>
+const absentArray = [
+614,615,616,584,552,551,550,520,518,486,488,487, 
+426, 427, 428, 429, 430, 458, 490, 522, 554, 460, 492, 524, 556, 462, 494, 526, 558,
+432, 433, 434, 560, 528, 496, 464, 497, 562, 530, 498, 466,
+436, 437, 438, 469, 501, 533, 565,
+440, 442, 472, 504, 536, 568, 474, 506, 538, 570, 505,
+66, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 93,
+65, 97, 129, 161, 193, 225, 257, 289, 321, 353, 385, 417, 449, 481, 513, 545, 577, 609, 641, 673, 705, 737, 769, 801, 833, 865, 897, 929, 930,
+94, 126, 158, 190, 222, 254, 286, 318, 350, 382, 414, 446, 478, 510, 542, 574, 606, 638, 670, 702, 734, 766, 798, 830, 862, 894, 926, 958, 957,
+962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974, 975, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 986, 987, 988, 989
+]; 
+
+var d = ['g',' '];
+var e = ['m', ' '];
+var f = Math.floor(Math.random() * 2);
+
+function gMath() {
+const random = Math.floor(Math.random() * 1025);
+if(!absentArray.includes(random)) {
+	 var a = random;
+   if (document.getElementsByTagName('p')[a] = 'undefined') {
+		var b = Math.floor(Math.random() * 2);
+    let pixel = document.getElementsByTagName('p')[a];
+		const span = document.createElement('span');
+    const p = document.createElement('p');
+    if (b == 0) {
+    span.innerHTML = d[f];
+    } else {
+    span.innerHTML = e[f];
+    }
+    pixel.replaceWith(p);
+    p.append(span);
+    }  
+   } else {
+   }  
+    }
+   window.setInterval('gMath()', 1);
+</script>
+
+<style>
+span {
+font-family: 'MathcastlesRemix-Regular',monospace;
+    margin: 0;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+
+}
+</style>
