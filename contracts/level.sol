@@ -2,12 +2,12 @@
 
 /*
 
-██╗     ███████╗██╗   ██╗███████╗██╗      ██████╗ █████╗ ██████╗ ██████╗ ███████╗
-██║     ██╔════╝██║   ██║██╔════╝██║     ██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝
-██║     █████╗  ██║   ██║█████╗  ██║     ██║     ███████║██████╔╝██║  ██║███████╗
-██║     ██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║     ██║     ██╔══██║██╔══██╗██║  ██║╚════██║
-███████╗███████╗ ╚████╔╝ ███████╗███████╗╚██████╗██║  ██║██║  ██║██████╔╝███████║
-╚══════╝╚══════╝  ╚═══╝  ╚══════╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝ v:alpha              
+      ██╗███████╗██╗   ██╗███████╗██╗      
+      ██║██╔════╝██║   ██║██╔════╝██║      
+█████╗██║█████╗  ██║   ██║█████╗  ██║█████╗
+╚════╝██║██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚════╝
+      ██║███████╗ ╚████╔╝ ███████╗██║      
+      ╚═╝╚══════╝  ╚═══╝  ╚══════╝╚═╝ v:alpha              
 
 by: thebadcc   
 
@@ -23,8 +23,6 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE SOFTWARE OR FROM
 OTHER DEALINGS IN THE SOFTWARE.
-
-All rights reserved.
 
 */
 
@@ -553,15 +551,16 @@ contract level is Context, Ownable, ERC165, IERC1155, IERC1155MetadataURI {
                         tokenParams[tokenId].title,
                         '","description":"',
                         tokenParams[tokenId].description,
-                        '","artist":"',
-                        tokenParams[tokenId].artist,
-                        '","terraform":"',
-                        Strings.toString(tokenParams[tokenId].terraformId),
-                        '","level":"',
-                        Strings.toString(tokenParams[tokenId].level),
-                        '","animation_URL":"',
+                        '","animation_url":"',
                         animation,
-                        '","image": "data:image/svg+xml;base64,',
+                        '","attributes": [{"trait_type":"Artist(s)","value":"',
+                        tokenParams[tokenId].artist,
+                        '"},{"trait_type":"Terraform","value":"',
+                        Strings.toString(tokenParams[tokenId].terraformId),
+                        '"},{"trait_type":"Level","value":"',
+                        Strings.toString(tokenParams[tokenId].level),
+                        '"}]',
+                        ',"image": "data:image/svg+xml;base64,',
                         Base64.encode(
                         abi.encodePacked(tokenSVG(tokenId))
                         ),
@@ -651,10 +650,10 @@ contract level is Context, Ownable, ERC165, IERC1155, IERC1155MetadataURI {
     function editToken(uint tokenId, uint _terraformId) public virtual {
         uint placement = terraforms.tokenToPlacement(_terraformId);
         (uint tokenLevel, ) = terraformsData.levelAndTile(placement, 10196);
-        /* require (
+        require (
             msg.sender == terraforms.ownerOf(_terraformId),
             "ERC721: caller is not terraform owner"
-        ); */
+        );
         require (
         tokenParams[tokenId].level == tokenLevel + 1, 
         "ERC721: invalid token level"
