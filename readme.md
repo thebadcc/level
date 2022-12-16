@@ -6,6 +6,8 @@
       ██║███████╗ ╚████╔╝ ███████╗██║      
       ╚═╝╚══════╝  ╚═══╝  ╚══════╝╚═╝ v:alpha     
 
+An interactive and permissioned Terraforms derivative collection.
+
 by: thebadcc   
 
 ETH: 0xf21ca12969b2a7ba12ee098360a5da3e06b8cbdc
