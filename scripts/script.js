@@ -1,5 +1,246 @@
-provider = new ethers.providers.AlchemyProvider("homestead", "eWNFBFM9fEUgDnxee46S11gRy_T9p-dR");
+provider = new ethers.providers.AlchemyProvider("homestead", "ENTERAPIKEY");
 const levelAddress = [APIKEY];
+const levelAbi = [{
+  "inputs": [{
+    "internalType": "string",
+    "name": "name_",
+    "type": "string"
+  }, {
+    "internalType": "string",
+    "name": "symbol_",
+    "type": "string"
+  }, {
+    "internalType": "string",
+    "name": "_animationURL",
+    "type": "string"
+  }, {
+    "internalType": "bool",
+    "name": "_externalAnimation",
+    "type": "bool"
+  }],
+  "stateMutability": "nonpayable",
+  "type": "constructor"
+}, {
+  "anonymous": false,
+  "inputs": [{
+    "indexed": true,
+    "internalType": "address",
+    "name": "account",
+    "type": "address"
+  }, {
+    "indexed": true,
+    "internalType": "address",
+    "name": "operator",
+    "type": "address"
+  }, {
+    "indexed": false,
+    "internalType": "bool",
+    "name": "approved",
+    "type": "bool"
+  }],
+  "name": "ApprovalForAll",
+  "type": "event"
+}, {
+  "anonymous": false,
+  "inputs": [{
+    "indexed": true,
+    "internalType": "address",
+    "name": "previousOwner",
+    "type": "address"
+  }, {
+    "indexed": true,
+    "internalType": "address",
+    "name": "newOwner",
+    "type": "address"
+  }],
+  "name": "OwnershipTransferred",
+  "type": "event"
+}, {
+  "anonymous": false,
+  "inputs": [{
+    "indexed": true,
+    "internalType": "address",
+    "name": "operator",
+    "type": "address"
+  }, {
+    "indexed": true,
+    "internalType": "address",
+    "name": "from",
+    "type": "address"
+  }, {
+    "indexed": true,
+    "internalType": "address",
+    "name": "to",
+    "type": "address"
+  }, {
+    "indexed": false,
+    "internalType": "uint256[]",
+    "name": "ids",
+    "type": "uint256[]"
+  }, {
+    "indexed": false,
+    "internalType": "uint256[]",
+    "name": "values",
+    "type": "uint256[]"
+  }],
+  "name": "TransferBatch",
+  "type": "event"
+}, {
+  "anonymous": false,
+  "inputs": [{
+    "indexed": true,
+    "internalType": "address",
+    "name": "operator",
+    "type": "address"
+  }, {
+    "indexed": true,
+    "internalType": "address",
+    "name": "from",
+    "type": "address"
+  }, {
+    "indexed": true,
+    "internalType": "address",
+    "name": "to",
+    "type": "address"
+  }, {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "id",
+    "type": "uint256"
+  }, {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "value",
+    "type": "uint256"
+  }],
+  "name": "TransferSingle",
+  "type": "event"
+}, {
+  "anonymous": false,
+  "inputs": [{
+    "indexed": false,
+    "internalType": "string",
+    "name": "value",
+    "type": "string"
+  }, {
+    "indexed": true,
+    "internalType": "uint256",
+    "name": "id",
+    "type": "uint256"
+  }],
+  "name": "URI",
+  "type": "event"
+}, {
+  "inputs": [{
+    "internalType": "uint256[]",
+    "name": "_canvas",
+    "type": "uint256[]"
+  }],
+  "name": "addCanvas",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+}, {
+  "inputs": [{
+    "internalType": "string",
+    "name": "_script",
+    "type": "string"
+  }],
+  "name": "addLbry",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+}, {
+  "inputs": [],
+  "name": "animationURL",
+  "outputs": [{
+    "internalType": "string",
+    "name": "",
+    "type": "string"
+  }],
+  "stateMutability": "view",
+  "type": "function"
+}, {
+  "inputs": [{
+    "internalType": "address",
+    "name": "account",
+    "type": "address"
+  }, {
+    "internalType": "uint256",
+    "name": "id",
+    "type": "uint256"
+  }],
+  "name": "balanceOf",
+  "outputs": [{
+    "internalType": "uint256",
+    "name": "",
+    "type": "uint256"
+  }],
+  "stateMutability": "view",
+  "type": "function"
+}, {
+  "inputs": [{
+    "internalType": "address[]",
+    "name": "accounts",
+    "type": "address[]"
+  }, {
+    "internalType": "uint256[]",
+    "name": "ids",
+    "type": "uint256[]"
+  }],
+  "name": "balanceOfBatch",
+  "outputs": [{
+    "internalType": "uint256[]",
+    "name": "",
+    "type": "uint256[]"
+  }],
+  "stateMutability": "view",
+  "type": "function"
+}, {
+  "inputs": [{
+    "internalType": "address",
+    "name": "from",
+    "type": "address"
+  }, {
+    "internalType": "uint256",
+    "name": "id",
+    "type": "uint256"
+  }, {
+    "internalType": "uint256",
+    "name": "amount",
+    "type": "uint256"
+  }],
+  "name": "burnLevel",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+}, {
+  "inputs": [],
+  "name": "canvasLength",
+  "outputs": [{
+    "internalType": "uint256",
+    "name": "",
+    "type": "uint256"
+  }],
+  "stateMutability": "view",
+  "type": "function"
+}, {
+  "inputs": [{
+    "internalType": "uint256",
+    "name": "tokenId",
+    "type": "uint256"
+  }, {
+    "internalType": "uint256[]",
+    "name": "_topLbry",
+    "type": "uint256[]"
+  }, {
+    "internalType": "uint256[]",
+    "name": "_botLbry",
+    "type": "uint256[]"
+  }, {
+    "internalType": "uint256",
+provider = new ethers.providers.AlchemyProvider("homestead", "eWNFBFM9fEUgDnxee46S11gRy_T9p-dR");
+const levelAddress = "0xad7c51fa4ea7346257390ddaa07c8844cf8f8ecb";
 const levelAbi = [{
   "inputs": [{
     "internalType": "string",
@@ -634,6 +875,6 @@ async function getSVG(tokenID) {
 
 getSVG(1).then(data => {
   console.log(data);
-  var div = document.body.innerHTML = data;
-  document.body.appendChild(div);
+  $('body').html(data);
 });
+
