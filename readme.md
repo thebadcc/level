@@ -6,7 +6,7 @@
       ██║███████╗ ╚████╔╝ ███████╗██║      
       ╚═╝╚══════╝  ╚═══╝  ╚══════╝╚═╝ v:alpha     
 
-An interactive and permissioned Terraforms derivative collection.
+An interactive and permissioned Terraforms derivative project.
 
 by: thebadcc   
 
