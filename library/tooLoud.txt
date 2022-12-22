@@ -1,1 +1,151 @@
+<main>
+  <button onclick="init()">start</button>
+</main>
 
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body, main {
+  margin: 0;
+  padding: 0;
+  min-width: 100%;
+  min-height: 100vh;
+  font-family: sans-serif;
+  text-align: center;
+  color: #fff;
+  background: #000;
+}
+
+button {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5em;
+  height: 2em;
+  margin-left: -2.5em;
+  margin-top: -1em;
+  z-index: 100;
+  
+  padding: .25em .5em;
+  color: #fff;
+  background: #000;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.15em;
+  font-weight: 200;
+  box-shadow: 0 0 10px rgba( 255, 255, 255, .5 );
+  transition: box-shadow .5s;
+  
+  &:hover {
+    box-shadow: 0 0 30px 5px rgba( 255, 255, 255, .75 );
+  }
+}
+
+main {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  > div {
+    display: inline-block;
+    width: 3px;
+    height: 300px;
+    margin: 0 7px;
+    background: currentColor;
+    transform: scaleY( .5 );
+    opacity: .25;
+  }
+  
+  &.error {
+    color: #f7451d;
+    min-width: 20em;
+    max-width: 30em;
+    margin: 0 auto;
+    white-space: pre-line;
+  }
+}
+
+
+class AudioVisualizer {
+  constructor( audioContext, processFrame, processError ) {
+    this.audioContext = audioContext;
+    this.processFrame = processFrame;
+    this.connectStream = this.connectStream.bind( this );
+    navigator.mediaDevices.getUserMedia( { audio: true, video: false } )
+      .then( this.connectStream )
+      .catch( ( error ) => {
+        if ( processError ) {
+          processError( error );
+        }
+      } );
+  }
+
+  connectStream( stream ) {
+    this.analyser = this.audioContext.createAnalyser();
+    const source = this.audioContext.createMediaStreamSource( stream );
+    source.connect( this.analyser );
+    this.analyser.smoothingTimeConstant = 0.5;
+    this.analyser.fftSize = 32;
+    this.initRenderLoop( this.analyser );
+  }
+
+  initRenderLoop() {
+    const frequencyData = new Uint8Array( this.analyser.frequencyBinCount );
+    const processFrame = this.processFrame || ( () => {} );
+
+    const renderFrame = () => {
+      this.analyser.getByteFrequencyData( frequencyData );
+      processFrame( frequencyData );
+
+      requestAnimationFrame( renderFrame );
+    };
+    requestAnimationFrame( renderFrame );
+  }
+}
+
+const visualMainElement = document.querySelector( 'main' );
+const visualValueCount = 32;
+let visualElements;
+const createDOMElements = () => {
+  let i;
+  for ( i = 0; i < visualValueCount; ++i ) {
+    const elm = document.createElement( 'div' );
+    visualMainElement.appendChild( elm );
+  }
+
+  visualElements = document.querySelectorAll( 'main div' );
+};
+createDOMElements();
+
+const init = () => {
+  // Creating initial DOM elements
+  const audioContext = new AudioContext();
+  const initDOM = () => {
+    visualMainElement.innerHTML = '';
+    createDOMElements();b
+  };
+  initDOM();
+
+  
+  const dataMap = { 0: 8, 1: 7, 2: 6, 3: 5, 4: 4, 5: 3, 6: 3, 7: 2, 8: 2, 9: 3, 10: 3, 11: 4, 12: 5, 13: 6, 14: 7, 15: 8, 16: 8, 17: 7, 18: 6, 19: 5, 20: 4, 21: 3, 22: 3, 23: 2, 24: 2, 25: 3, 26: 3, 27: 4, 28: 5, 29: 6, 30: 7, 31: 8  };
+  const processFrame = ( data ) => {
+    const values = Object.values( data );
+    let i;
+    for ( i = 0; i < visualValueCount; ++i ) {
+      const value = values[ dataMap[ i ] ] / 255;
+      const elmStyles = visualElements[ i ].style;
+      elmStyles.transform = `scaleY( ${ value } )`;
+      elmStyles.opacity = Math.max( .25, value );
+    }
+  }; 
+
+  const processError = () => {
+    alert('Please allow access to your microphone');
+  }
+
+  const a = new AudioVisualizer( audioContext, processFrame, processError );
+};
