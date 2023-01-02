@@ -39,33 +39,20 @@ class AudioVisualizer {
 }
 
 var strength = 20;
-  
   function minus() {
-  if(strength >= 60) {
-} else {
-  strength += 10;
-}
+    if(strength >= 60) {} else {strength += 10;}
 }
   
-  function plus() {
-  if(strength <= 10) {
-} else {
-  strength -= 10;
-}
+function plus() {
+  if(strength <= 10) {} else {strength -= 10;}
 }
 
 var setting = 0;
-
 function newSetting() {
-  if(setting == 5){
-  setting = 0
-} else {
-  setting += 1;
-}
+  if(setting == 5){ setting = 0} else {setting += 1;}
 }
 
 var signal = 0;
-
 function newSignal() {
   if(signal == 2){
   signal = 0
@@ -102,54 +89,48 @@ for (var i = 0; i < 12; i++) {
 }
 
 for (var i = 0; i < 4; i++) {
-    var card1 = trigger[minusButton[i]];
-    card1.onclick = function() { minus(); } ;
+    var t1 = trigger[minusButton[i]];
+    t1.onclick = function() { minus(); } ;
 }
 
 for (var i = 0; i < 5; i++) {
-    var card2 = trigger[plusButton[i]];
-    card2.onclick = function() { plus(); } ;
+    var t2 = trigger[plusButton[i]];
+    t2.onclick = function() { plus(); } ;
 }
 
 for (var i = 0; i < 16; i++) {
-    var card3 = trigger[powerButton[i]];
-    card3.onclick = function() { init(); } ;
+    var t3 = trigger[powerButton[i]];
+    t3.onclick = function() { init(); } ;
 }
 
 for (var i = 0; i < 26; i++) {
-    var card4 = trigger[toggleButton[i]];
-    card4.onclick = function() { newSetting(); } ;
+    var t4 = trigger[toggleButton[i]];
+    t4.onclick = function() { newSetting(); } ;
 }
 
 const init = () => {
    
   visualElements = document.getElementsByTagName('p');
-  // Creating initial DOM elements
   const audioContext = new AudioContext();
-  // Swapping values around for a better visual effect
-
-    const dataMap1 = { 0: 8, 1: 8, 2: 7, 3: 7, 4: 6, 5: 6, 6: 5, 7: 5, 8: 4, 9: 4, 10: 3, 11: 2, 12: 2, 13: 3, 14: 4, 15: 4, 16: 5, 17: 5, 18: 6, 19: 6, 20: 7, 21: 7, 22: 8, 23: 8};
-    const dataMap2 = { 0: 6, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 1, 7: 2, 8: 3, 9: 4, 10: 5, 11: 6, 12: 6, 13: 5, 14: 4, 15: 3, 16: 2, 17: 1, 18: 1, 19: 2, 20: 3, 21: 4, 22: 5, 23: 6 };
-      const dataMap3 = { 0: 6, 1: 5, 2: 4, 3: 3, 4: 3, 5: 4, 6: 5, 7: 6, 8: 6, 9: 5, 10: 4, 11: 3, 12: 3, 13: 4, 14: 5, 15: 6, 16: 6, 17: 5, 18: 4, 19: 3, 20: 3, 21: 4, 22: 5, 23: 6 };
-        const dataMap4 = { 0: 8, 1: 8, 2: 8, 3: 7, 4: 7, 5: 7, 6: 6, 7: 6, 8: 6, 9: 5, 10: 5, 11: 5, 12: 4, 13: 4, 14: 4, 15: 3, 16: 3, 17: 3, 18: 2, 19: 2, 20: 2, 21: 1, 22: 1, 23: 1 };
-  
+  const dataMap1 = { 0: 8, 1: 8, 2: 7, 3: 7, 4: 6, 5: 6, 6: 5, 7: 5, 8: 4, 9: 4, 10: 3, 11: 2, 12: 2, 13: 3, 14: 4, 15: 4, 16: 5, 17: 5, 18: 6, 19: 6, 20: 7, 21: 7, 22: 8, 23: 8};
+  const dataMap2 = { 0: 6, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 1, 7: 2, 8: 3, 9: 4, 10: 5, 11: 6, 12: 6, 13: 5, 14: 4, 15: 3, 16: 2, 17: 1, 18: 1, 19: 2, 20: 3, 21: 4, 22: 5, 23: 6 };
+  const dataMap3 = { 0: 6, 1: 5, 2: 4, 3: 3, 4: 3, 5: 4, 6: 5, 7: 6, 8: 6, 9: 5, 10: 4, 11: 3, 12: 3, 13: 4, 14: 5, 15: 6, 16: 6, 17: 5, 18: 4, 19: 3, 20: 3, 21: 4, 22: 5, 23: 6 };
+  const dataMap4 = { 0: 8, 1: 8, 2: 8, 3: 7, 4: 7, 5: 7, 6: 6, 7: 6, 8: 6, 9: 5, 10: 5, 11: 5, 12: 4, 13: 4, 14: 4, 15: 3, 16: 3, 17: 3, 18: 2, 19: 2, 20: 2, 21: 1, 22: 1, 23: 1 }; 
   const dataMap5 = { 0: 1, 1: 1, 2: 1, 3: 2, 4: 2, 5: 2, 6: 3, 7: 3, 8: 3, 9: 4, 10: 4, 11: 4, 12: 5, 13: 5, 14: 5, 15: 6, 16: 6, 17: 6, 18: 7, 19: 7, 20: 7, 21: 8, 22: 8, 23: 8 };
   
   
-      const dataMap6 = Array(24)
-    .fill()
-    .map(() => Math.floor(9 * Math.random()));
+const dataMap6 = Array(24).fill().map(() => Math.floor(9 * Math.random()));
   
   const signal1 = {
-    0: "b", 1: "c", 2: "d", 3: "e", 4: "f", 5: "g", 6: "h", 7: "b", 8: "c", 9: "d", 10: "e", 11: "f", 12: "g", 13: "h", 14: "b", 15: "c", 16: "d", 17: "e", 18: "f", 19: "g", 20: "h", 21: "b", 22: "c", 23: "d"
+    0: 'b', 1: 'c', 2: 'd', 3: 'e', 4: 'f', 5: 'g', 6: 'h', 7: 'b', 8: 'c', 9: 'd', 10: 'e', 11: 'f', 12: 'g', 13: 'h', 14: 'b', 15: 'c', 16: 'd', 17: 'e', 18: 'f', 19: 'g', 20: 'h', 21: 'b', 22: 'c', 23: 'd'
   }
   
  const signal2 = {
-    0: "f", 1: "f", 2: "f", 3: "f", 4: "f", 5: "f", 6: "f", 7: "f", 8: "f", 9: "f", 10: "f", 11: "f", 12: "f", 13: "f", 14: "f", 15: "f", 16: "f", 17: "f", 18: "f", 19: "f", 20: "f", 21: "f", 22: "f", 23: "f"
+    0: 'f', 1: 'f', 2: 'f', 3: 'f', 4: 'f', 5: 'f', 6: 'f', 7: 'f', 8: 'f', 9: 'f', 10: 'f', 11: 'f', 12: 'f', 13: 'f', 14: 'f', 15: 'f', 16: 'f', 17: 'f', 18: 'f', 19: 'f', 20: 'f', 21: 'f', 22: 'f', 23: 'f'
   }
  
 const signal3 = {
-    0: "f", 1: "f", 2: "f", 3: "f", 4: "f", 5: "f", 6: "f", 7: "f", 8: "f", 9: "f", 10: "f", 11: "f", 12: "g", 13: "g", 14: "g", 15: "g", 16: "g", 17: "g", 18: "g", 19: "g", 20: "g", 21: "g", 22: "g", 23: "g"
+    0: 'f', 1: 'f', 2: 'f', 3: 'f', 4: 'f', 5: 'f', 6: 'f', 7: 'f', 8: 'f', 9: 'f', 10: 'f', 11: 'f', 12: 'g', 13: 'g', 14: 'g', 15: 'g', 16: 'g', 17: 'g', 18: 'g', 19: 'g', 20: 'g', 21: 'g', 22: 'g', 23: 'g'
   }
  
 var signalMap = {
@@ -174,7 +155,7 @@ var dataMap ={
   };
 
   const processError = () => {
-    alert('Please allow access to your microphone in order to see this demo.');
+    alert('Please allow access to your microphone in order to see vizualization.');
   }
   
 
